@@ -1,0 +1,210 @@
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #000;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        canvas {
+            display: block;
+        }
+        /* Splash Screen */
+        #splash-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(10, 10, 15, 0.95);
+            backdrop-filter: blur(15px);
+            z-index: 1000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            transition: opacity 0.5s;
+        }
+        #splash-screen .content {
+            text-align: center;
+            max-width: 600px;
+            padding: 40px;
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 8px;
+            background: rgba(255,255,255,0.05);
+            box-shadow: 0 0 50px rgba(0,0,0,0.5);
+        }
+        #splash-screen h1 {
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+            color: #fff;
+            text-shadow: 0 0 20px rgba(255,255,255,0.2);
+        }
+        .subtitle {
+            color: #aaa;
+            font-size: 1.2rem;
+            margin-bottom: 30px;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+        .mission-guide {
+            text-align: left;
+            background: rgba(0,0,0,0.3);
+            padding: 20px;
+            border-radius: 6px;
+            margin-bottom: 30px;
+            border-left: 4px solid #3498db;
+        }
+        .mission-guide h2 {
+            font-size: 1.1rem;
+            margin-top: 0;
+            color: #3498db;
+            text-transform: uppercase;
+        }
+        .mission-guide ol {
+            padding-left: 20px;
+            line-height: 1.6;
+            color: #ddd;
+        }
+        .key {
+            background: #333;
+            border: 1px solid #555;
+            border-radius: 4px;
+            padding: 2px 6px;
+            font-family: monospace;
+            font-size: 0.9em;
+            color: #ffdd57;
+            box-shadow: 0 2px 0 #111;
+        }
+        button.large {
+            font-size: 1.5rem;
+            padding: 15px 40px;
+            letter-spacing: 2px;
+        }
+        
+        #ui-layer {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: white;
+            z-index: 10;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        #telemetry-container {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            background: rgba(0, 0, 0, 0.6);
+            padding: 10px;
+            border-radius: 4px;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        #telemetry {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        #graph-canvas {
+            border-top: 1px solid rgba(255,255,255,0.2);
+            margin-top: 5px;
+            background: rgba(0,0,0,0.3);
+        }
+        .stat-group {
+            /* removed background since container has it */
+            padding: 5px;
+            border-left: 3px solid #e74c3c;
+            font-family: monospace;
+            font-size: 0.9rem;
+            color: #aaa;
+        }
+        .stat-group h3 {
+            margin: 0 0 5px 0;
+            font-size: 0.7rem;
+            color: #fff;
+            opacity: 0.7;
+        }
+        #controls-help {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            color: rgba(255, 255, 255, 0.5);
+            font-family: monospace;
+            font-size: 0.8rem;
+            background: rgba(0,0,0,0.3);
+            padding: 5px 10px;
+            border-radius: 4px;
+            pointer-events: none;
+        }
+        h1 {
+            margin: 0;
+            font-size: 1.5rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+        }
+        #stats {
+            margin-top: 10px;
+            font-family: monospace;
+            font-size: 0.9rem;
+            color: #aaa;
+        }
+        #controls {
+            position: absolute;
+            bottom: 40px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 20;
+            display: flex;
+            gap: 15px;
+        }
+        button {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            padding: 12px 30px;
+            font-size: 1rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            cursor: pointer;
+            border-radius: 4px;
+            transition: all 0.3s ease;
+        }
+        button:hover {
+            background: rgba(255, 255, 255, 0.25);
+            border-color: white;
+            box-shadow: 0 0 15px rgba(255,255,255,0.3);
+        }
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            background: rgba(0,0,0,0.2);
+        }
+        button.primary {
+            background: #e74c3c;
+            border-color: #c0392b;
+            font-weight: bold;
+        }
+        button.primary:hover {
+            background: #ff5e4d;
+            box-shadow: 0 0 20px rgba(231, 76, 60, 0.6);
+        }
+        
+        /* Message overlay */
+        #status-msg {
+            position: absolute;
+            top: 40%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-size: 2rem;
+            font-weight: 300;
+            opacity: 0;
+            transition: opacity 0.5s;
+            text-align: center;
+            text-shadow: 0 2px 10px rgba(0,0,0,0.8);
+        }

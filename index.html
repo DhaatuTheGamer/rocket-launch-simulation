@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Realistic Rocket Launch</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <div id="splash-screen">
+        <div class="content">
+            <h1>ORBITAL LAUNCH SIMULATOR</h1>
+            <p class="subtitle">Multi-Stage Physics & Landing Simulation</p>
+            
+            <div class="mission-guide">
+                <h2>📋 Full Mission Profile Guide</h2>
+                <ol>
+                    <li><strong>LIFTOFF:</strong> Press <span class="key">SPACE</span>. Engines ignite at T-0.</li>
+                    <li><strong>GRAVITY TURN:</strong> At <strong>2.0 km</strong>, tap <span class="key">RIGHT ARROW</span> to tilt slightly (~10°).</li>
+                    <li><strong>MAX Q:</strong> Watch for camera shake and vapor cones around 300 m/s.</li>
+                    <li><strong>STAGING:</strong> When APOGEE > 100km (or fuel low), press <span class="key">S</span>.</li>
+                    <li><strong>LANDING (Optional):</strong> Press <span class="key">B</span> to track Booster. Use <span class="key">ARROWS</span> to guide it home.</li>
+                    <li><strong>ORBIT:</strong> Press <span class="key">1</span> for Upper Stage. Coast to space.</li>
+                    <li><strong>PAYLOAD:</strong> In vacuum, press <span class="key">P</span> to deploy Satellite.</li>
+                </ol>
+            </div>
+
+            <button id="start-btn" class="primary large">🚀 ENTER MISSION CONTROL</button>
+        </div>
+    </div>
+
+    <div id="ui-layer">
+        <h1>Orbital Launch Vehicle</h1>
+        <div id="telemetry-container">
+            <div id="telemetry">
+                <div class="stat-group">
+                    <h3>MISSION</h3>
+                    ALTITUDE: <span id="alt">0.0</span> km<br>
+                    VELOCITY: <span id="vel">0.0</span> m/s<br>
+                    APOGEE: <span id="apogee">0.0</span> km
+                </div>
+                <div class="stat-group" id="booster-stats" style="display:none; color: #ffdd57;">
+                    <h3>BOOSTER (MANUAL)</h3>
+                    FUEL: <span id="boost-fuel">100</span>%<br>
+                    THRUST: <span id="boost-thrust">0</span>%<br>
+                    <small>Arrows: Control | X: Cut Engine</small>
+                </div>
+            </div>
+            <!-- Telemetry Graphs -->
+            <canvas id="graph-canvas" width="300" height="100"></canvas>
+        </div>
+    </div>
+
+    <div id="controls-help">
+        [SPACE] Launch | [S] Stage | [P] Payload | [ARROWS] Control | [1-3] Cam | [ / ] Time
+    </div>
+
+    <div id="status-msg">T-MINUS 3 SECONDS</div>
+
+    <div id="controls">
+        <button id="launch-btn" class="primary">Initiate Launch</button>
+        <button id="audio-btn">🔇 Enable Audio</button>
+        <button id="reset-btn" onclick="location.reload()">Reset</button>
+    </div>
+
+    <canvas id="canvas"></canvas>
+
+    <script src="script.js"></script>
+</body>
+</html>
