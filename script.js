@@ -12,6 +12,11 @@
         const MASS_BOOSTER = 40000;         
         const MASS_UPPER = 15000;           
         const FUEL_MASS = 30000;            
+
+        const ISP_VAC_BOOSTER = 311; // Seconds (SpaceX Merlin approx)
+        const ISP_SL_BOOSTER = 282;
+        const ISP_VAC_UPPER = 348;   // Vacuum engine is efficient
+        const ISP_SL_UPPER = 100;    // Vacuum engines suck at sea level
         
         // --- Setup Canvas ---
         const canvas = document.getElementById('canvas');
@@ -283,6 +288,8 @@
                 this.cd = 0.5; 
                 this.q = 0; 
                 this.apogee = 0;
+                this.ispVac = 300; // Default
+                this.ispSL = 280;  // Default
             }
 
             applyPhysics(dt) {
@@ -295,7 +302,21 @@
 
                 const v = Math.sqrt(this.vx*this.vx + this.vy*this.vy);
                 this.q = 0.5 * rho * v * v;
-                const dragForceMagnitude = this.q * 0.1 * this.cd; 
+
+                const speedOfSound = 340; // m/s approx
+                const mach = v / speedOfSound;
+
+                // Simple drag divergence model
+                let machDragMult = 1.0;
+                if (mach > 0.8 && mach < 1.2) {
+                    // Peak drag at Mach 1.0
+                    machDragMult = 2.5; 
+                } else if (mach >= 1.2 && mach < 5.0) {
+                    // Taper off at high supersonic
+                    machDragMult = 1.5;
+                }
+
+                const dragForceMagnitude = this.q * 0.1 * this.cd * machDragMult;
                 
                 let dragFx = 0;
                 let dragFy = 0;
@@ -318,10 +339,22 @@
                 fy += dragFy;
 
                 if (this.throttle > 0 && this.fuel > 0) {
-                    const thrust = this.throttle * this.maxThrust;
+                    const pressureRatio = rho / RHO_SL; // 1.0 at sea level, 0.0 in vacuum
+                    // Interpolate Isp based on atmospheric pressure
+                    const currentIsp = this.ispVac + (this.ispSL - this.ispVac) * pressureRatio;
+                    
+                    // Calculate Thrust: F = F_vac * (Isp_current / Isp_vac)
+                    // This is a simplified approximation but works well for games
+                    const thrustEfficiency = currentIsp / this.ispVac; 
+                    const thrust = this.throttle * this.maxThrust * thrustEfficiency;
+
                     fx += Math.sin(this.angle) * thrust;
                     fy -= Math.cos(this.angle) * thrust;
-                    this.fuel -= (this.throttle * 0.0005) * (dt / (1/60)); 
+
+                    // Mass flow rate is constant for a given throttle setting, regardless of Isp
+                    // dm/dt = F_vac / (g0 * Isp_vac)
+                    const massFlow = (this.throttle * this.maxThrust) / (9.8 * this.ispVac);
+                    this.fuel -= (massFlow / FUEL_MASS) * dt; 
                 }
 
                 const ax = fx / this.mass;
@@ -374,22 +407,58 @@
             spawnExhaust(timeScale) {
                 if (this.throttle <= 0 || this.fuel <= 0 || this.crashed) return;
                 const count = Math.ceil(this.throttle * 5 * timeScale); 
+
+                const altitude = (groundY - this.y - this.h) / PIXELS_PER_METER;
+                const safeAlt = Math.max(0, altitude);
                 
-                // Calculate engine nozzle position (bottom of the rocket)
-                // Rocket "down" direction is (-sin(angle), cos(angle)) in canvas coords due to clockwise rotation
+                // 0 = Sea Level (Narrow), 1 = Space (Wide)
+                const vacuumFactor = Math.min(safeAlt / 30000, 1.0); 
+                
+                // Widen the spread angle as we get higher
+                const spreadBase = 0.1 + (vacuumFactor * 1.5); // Much wider in space
+
                 const exX = this.x - Math.sin(this.angle) * this.h;
                 const exY = this.y + Math.cos(this.angle) * this.h; 
                 
-                // Calculate exhaust velocity vector relative to world
-                // Exhaust shoots "down" relative to rocket
                 const ejectionSpeed = 30 + (this.throttle * 20);
-                const ejectVx = -Math.sin(this.angle) * ejectionSpeed;
-                const ejectVy = Math.cos(this.angle) * ejectionSpeed;
 
                 for (let i = 0; i < count; i++) {
-                     // Particle velocity = Vessel Velocity + Ejection Velocity
-                     particles.push(new Particle(exX, exY, 'fire', this.vx + ejectVx, this.vy + ejectVy));
-                     if (Math.random() > 0.5) particles.push(new Particle(exX, exY, 'smoke', this.vx + ejectVx, this.vy + ejectVy));
+                    // Calculate angle with spread
+                    const particleAngle = this.angle + Math.PI + (Math.random() - 0.5) * spreadBase;
+                    
+                    const ejectVx = Math.sin(particleAngle) * ejectionSpeed;
+                    const ejectVy = -Math.cos(particleAngle) * ejectionSpeed;
+
+                    // Space flames are often blue/pink/invisible, keep fire for now but maybe larger
+                    const p = new Particle(exX, exY, 'fire', this.vx + ejectVx, this.vy + ejectVy);
+                    
+                    // Make particles live longer in vacuum (no air resistance to stop them)
+                    if (vacuumFactor > 0.8) p.decay *= 0.5;
+                    
+                    particles.push(p);
+                     if (Math.random() > 0.5 && vacuumFactor < 0.5) particles.push(new Particle(exX, exY, 'smoke', this.vx + ejectVx, this.vy + ejectVy));
+                }
+            }
+
+            drawReentryPlasma(ctx) {
+                // Only draw if moving fast in atmosphere
+                if (this.q > 500) { 
+                    const intensity = Math.min((this.q - 500) / 3000, 1.0); // 0 to 1
+                    
+                    ctx.save();
+                    ctx.globalCompositeOperation = 'screen'; // Makes it glow
+                    ctx.fillStyle = `rgba(255, 100, 0, ${intensity * 0.6})`;
+                    
+                    // Draw a glow around the leading edge (bottom of rocket)
+                    ctx.beginPath();
+                    ctx.arc(0, this.h, 25 + (Math.random()*5), 0, Math.PI*2);
+                    ctx.fill();
+                    
+                    // Streamers moving up the body
+                    ctx.fillStyle = `rgba(255, 200, 50, ${intensity * 0.4})`;
+                    ctx.fillRect(-15, 20, 30, this.h - 20);
+                    
+                    ctx.restore();
                 }
             }
 
@@ -449,6 +518,7 @@
                 ctx.lineTo(30, 160);
                 ctx.lineTo(20, 150);
                 ctx.fill();
+                this.drawReentryPlasma(ctx);
                 ctx.restore();
             }
         }
@@ -462,6 +532,8 @@
                 this.mass = MASS_BOOSTER; 
                 this.maxThrust = MAX_THRUST_BOOSTER;
                 this.fuel = 0.3; 
+                this.ispVac = ISP_VAC_BOOSTER;
+                this.ispSL = ISP_SL_BOOSTER;
             }
             draw(ctx, camY) {
                 if (this.crashed) return;
@@ -479,6 +551,7 @@
                      ctx.fillRect(-35, 90, 15, 5); 
                      ctx.fillRect(20, 90, 15, 5); 
                 }
+                this.drawReentryPlasma(ctx);
                 ctx.restore();
             }
         }
@@ -493,6 +566,8 @@
                 this.maxThrust = MAX_THRUST_UPPER;
                 this.throttle = 1.0; 
                 this.fairingsDeployed = false;
+                this.ispVac = ISP_VAC_UPPER;
+                this.ispSL = ISP_SL_UPPER;
             }
             draw(ctx, camY) {
                 if (this.crashed) return;
@@ -527,6 +602,7 @@
                     ctx.fillRect(-10, -5, 20, 5);
                 }
                 
+                this.drawReentryPlasma(ctx);
                 ctx.restore();
             }
         }
@@ -786,6 +862,30 @@
         }
 
         function drawStats() {
+            // Draw Prograde Marker on the rocket
+            if (trackedEntity && trackedEntity.active) {
+                const velAngle = Math.atan2(trackedEntity.vx, -trackedEntity.vy); // Angle of movement
+                const drawX = trackedEntity.x;
+                const drawY = trackedEntity.y - cameraY;
+                
+                // Draw a small yellow circle indicating where we are going
+                // You can project this out in front of the rocket
+                const guideDist = 100;
+                const guideX = drawX + Math.sin(velAngle) * guideDist;
+                const guideY = drawY - Math.cos(velAngle) * guideDist;
+                
+                ctx.strokeStyle = 'rgba(241, 196, 15, 0.5)';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(drawX, drawY);
+                ctx.lineTo(guideX, guideY);
+                ctx.stroke();
+                
+                ctx.beginPath();
+                ctx.arc(guideX, guideY, 5, 0, Math.PI*2);
+                ctx.stroke();
+            }
+
             if (trackedEntity) {
                 const alt = (groundY - trackedEntity.y - trackedEntity.h) / PIXELS_PER_METER;
                 const vel = Math.sqrt(trackedEntity.vx**2 + trackedEntity.vy**2);
