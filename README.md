@@ -8,10 +8,13 @@ A high-fidelity web-based physics simulation of an orbital launch vehicle, featu
 *   **Multi-Stage Rocketry**: Detailed simulation of a two-stage vehicle (`FullStack`, `Booster`, `UpperStage`).
 *   **Staging Mechanics**: Momentum-preserving separation events with interstage debris.
 *   **Propulsive Landing**: Manually pilot the first-stage booster back to Earth using vector thrust control.
+*   **Impact Prediction**: Real-time trajectory calculation displaying a landing impact marker (Red X) for precision landings.
 *   **Atmospheric Physics**: Realistic drag model (`Cd`, `rho`), Dynamic Pressure (`Max Q`) calculation, and exponential atmosphere.
 *   **Orbital Mechanics**: Simulated gravity turn, centrifugal force, and apogee prediction.
 
 ### Visuals & Immersion
+*   **Active Engine Gimbaling**: Physically accurate engine nozzle rotation that pivots with user input.
+*   **Dynamic Engine Lighting**: Realistic engine glow that illuminates the rocket body and ground, flickering with throttle intensity.
 *   **Dynamic Environment**: Day/Night cycle, sun position, and atmospheric haze that changes with altitude.
 *   **Particle System**: Thousands of particles for exhaust, smoke, fire, sparks, and explosions.
 *   **Visual Effects**: Vapor cones (shockwaves) at transonic speeds/high Q, camera shake, and heat glow.
