@@ -277,6 +277,7 @@
                 this.vx = 0;
                 this.vy = 0; 
                 this.angle = 0; 
+                this.gimbalAngle = 0;
                 this.mass = 1000;
                 this.w = 40;
                 this.h = 100;
@@ -294,6 +295,31 @@
 
             applyPhysics(dt) {
                 if (this.crashed) return;
+
+                // --- Control Logic ---
+                // Only allow control if this is the active controllable vessel
+                const isControllable = (this === booster) || (this === mainStack && (!booster || !booster.active) && mainStack.active);
+                
+                if (isControllable) {
+                    let targetGimbal = 0;
+                    if (keys['ArrowLeft']) targetGimbal = 0.2;
+                    else if (keys['ArrowRight']) targetGimbal = -0.2;
+                    
+                    // Smoothly interpolate gimbal
+                    this.gimbalAngle += (targetGimbal - this.gimbalAngle) * 10 * dt;
+                    
+                    // Apply torque based on gimbal angle (simulate thrust vectoring)
+                    // If throttle is 0, control authority is low (fin/rcs only?) - keeping it simple: just rotation
+                    // The prompt says "link this.angle torque to this.gimbalAngle"
+                    // Realistically, torque = thrust * sin(gimbal) * distance_to_COM
+                    // We'll just rotate based on gimbal angle for "feel"
+                    if (Math.abs(this.gimbalAngle) > 0.01) {
+                        this.angle -= this.gimbalAngle * 2.0 * dt; 
+                    }
+                } else {
+                     // Center gimbal if not controlled
+                     this.gimbalAngle *= 0.9;
+                }
 
                 const altitude = (groundY - this.y - this.h) / PIXELS_PER_METER;
                 const safeAlt = Math.max(0, altitude);
@@ -497,6 +523,22 @@
                 ctx.translate(drawX, drawY);
                 ctx.rotate(this.angle);
                 this.drawShockwave(ctx);
+
+                // --- Dynamic Lighting ---
+                if (this.throttle > 0) {
+                    const flicker = 0.8 + Math.random() * 0.2;
+                    const intensity = this.throttle * flicker;
+                    
+                    const glowGrad = ctx.createLinearGradient(0, 160, 0, 100);
+                    glowGrad.addColorStop(0, `rgba(255, 100, 0, ${0.5 * intensity})`);
+                    glowGrad.addColorStop(1, `rgba(255, 100, 0, 0)`);
+                    
+                    ctx.fillStyle = glowGrad;
+                    ctx.globalCompositeOperation = 'overlay'; 
+                    ctx.fillRect(-25, 0, 50, 160); 
+                    ctx.globalCompositeOperation = 'source-over';
+                }
+
                 ctx.fillStyle = '#fff';
                 ctx.fillRect(-20, 0, 40, 60);
                 ctx.beginPath();
@@ -507,6 +549,22 @@
                 ctx.fillRect(-20, 60, 40, 5);
                 ctx.fillStyle = '#eee';
                 ctx.fillRect(-20, 65, 40, 95); 
+                
+                // --- Active Gimbal Engine ---
+                ctx.save();
+                ctx.translate(0, 160); // Bottom of stack
+                ctx.rotate(this.gimbalAngle);
+                ctx.fillStyle = '#333';
+                // Draw Nozzle Bell
+                ctx.beginPath();
+                ctx.moveTo(-10, 0);
+                ctx.lineTo(-15, 20);
+                ctx.lineTo(15, 20);
+                ctx.lineTo(10, 0);
+                ctx.fill();
+                ctx.restore();
+
+                // Fins
                 ctx.fillStyle = '#333';
                 ctx.beginPath();
                 ctx.moveTo(-20, 140);
@@ -518,6 +576,7 @@
                 ctx.lineTo(30, 160);
                 ctx.lineTo(20, 150);
                 ctx.fill();
+
                 this.drawReentryPlasma(ctx);
                 ctx.restore();
             }
@@ -542,10 +601,40 @@
                 ctx.save();
                 ctx.translate(drawX, drawY);
                 ctx.rotate(this.angle);
+
+                // --- Dynamic Lighting ---
+                if (this.throttle > 0) {
+                    const flicker = 0.8 + Math.random() * 0.2;
+                    const intensity = this.throttle * flicker;
+                    
+                    const glowGrad = ctx.createLinearGradient(0, 100, 0, 50);
+                    glowGrad.addColorStop(0, `rgba(255, 100, 0, ${0.5 * intensity})`);
+                    glowGrad.addColorStop(1, `rgba(255, 100, 0, 0)`);
+                    
+                    ctx.fillStyle = glowGrad;
+                    ctx.globalCompositeOperation = 'overlay'; 
+                    ctx.fillRect(-25, 0, 50, 100); 
+                    ctx.globalCompositeOperation = 'source-over';
+                }
+
                 ctx.fillStyle = '#eee'; 
                 ctx.fillRect(-20, 0, 40, 100);
+                
+                // --- Active Gimbal Engine ---
+                ctx.save();
+                ctx.translate(0, 100); // Bottom of booster
+                ctx.rotate(this.gimbalAngle);
                 ctx.fillStyle = '#222';
-                ctx.fillRect(-15, 100, 30, 5);
+                // Draw Nozzle Bell
+                ctx.beginPath();
+                ctx.moveTo(-10, 0);
+                ctx.lineTo(-15, 20);
+                ctx.lineTo(15, 20);
+                ctx.lineTo(10, 0);
+                ctx.fill();
+                ctx.restore();
+
+                // Landing Legs (Static deployment for visuals as per original code)
                 if (this.y > groundY - 300) {
                      ctx.fillStyle = '#111';
                      ctx.fillRect(-35, 90, 15, 5); 
@@ -911,6 +1000,69 @@
             }
         }
 
+        function drawTrajectory(vessel) {
+            if (!vessel || vessel.crashed || !vessel.active) return;
+            
+            // Simple physics prediction: x = x0 + v*t
+            // y = y0 + vy*t + 0.5*g*t^2
+            // We want to find t when y = groundY
+            
+            const g = 9.8; // Gravity
+            const vy = vessel.vy;
+            const yRel = groundY - (vessel.y + vessel.h); // Distance to ground
+            
+            // Quadratic formula to find time to impact
+            // 0 = -0.5gt^2 + vy*t + yRel (approximate, ignoring drag for the prediction line)
+            // This gives a "vacuum trajectory" which is a good-enough estimate for gameplay
+            
+            const disc = vy*vy - 4 * (-0.5 * g) * yRel;
+            if (disc < 0) return; // Not falling yet (or going up forever)
+            
+            const t1 = (-vy - Math.sqrt(disc)) / (-g);
+            const t2 = (-vy + Math.sqrt(disc)) / (-g);
+            const t = Math.max(t1, t2);
+            
+            if (t > 0 && t < 100) { // Don't draw if it's 5 hours away
+                const impactX = vessel.x + vessel.vx * t;
+                
+                // Draw the X on the ground
+                const drawX = impactX; 
+                const drawY = groundY - cameraY;
+                
+                ctx.save();
+                ctx.translate(cameraShakeX, cameraShakeY); // Apply camera shake to match scene
+                
+                ctx.strokeStyle = 'rgba(231, 76, 60, 0.8)'; // Red color
+                ctx.lineWidth = 2;
+                ctx.setLineDash([5, 5]);
+                
+                // Draw line from rocket to impact
+                ctx.beginPath();
+                ctx.moveTo(vessel.x, vessel.y + vessel.h - cameraY);
+                ctx.quadraticCurveTo(
+                    vessel.x + vessel.vx * (t/2), 
+                    (vessel.y - cameraY) - (vessel.vy < 0 ? 1000 : 0), // Simple curve control point
+                    drawX, 
+                    drawY
+                );
+                ctx.stroke();
+                
+                // Draw Impact Marker "X"
+                ctx.setLineDash([]);
+                ctx.translate(drawX, drawY);
+                ctx.beginPath();
+                ctx.moveTo(-10, -10); ctx.lineTo(10, 10);
+                ctx.moveTo(10, -10); ctx.lineTo(-10, 10);
+                ctx.stroke();
+                
+                // Label
+                ctx.fillStyle = 'white';
+                ctx.font = '12px monospace';
+                ctx.fillText(`IMPACT T-${t.toFixed(1)}s`, 15, -5);
+                ctx.restore();
+            }
+        }
+
         function animate() {
             ctx.clearRect(0, 0, width, height);
             updatePhysics(DT);
@@ -922,6 +1074,8 @@
             entities.forEach(e => e.draw(ctx, cameraY));
             ctx.restore();
             
+            if (booster) drawTrajectory(booster);
+
             drawStats();
             requestAnimationFrame(animate);
         }
@@ -933,6 +1087,8 @@
         const statusMsg = document.getElementById('status-msg');
         const splashScreen = document.getElementById('splash-screen');
         const startBtn = document.getElementById('start-btn');
+        
+        const keys = {};
 
         initGame();
 
@@ -981,8 +1137,14 @@
             const isMuted = audio.toggleMute();
             audioBtn.innerText = isMuted ? "🔇 Enable Audio" : "🔊 Mute Audio";
         });
+        
+        window.addEventListener('keyup', (e) => {
+            keys[e.code] = false;
+        });
 
         window.addEventListener('keydown', (e) => {
+            keys[e.code] = true;
+            
             if (e.code === 'Space') {
                 e.preventDefault(); 
                 initiateLaunch();
@@ -994,12 +1156,6 @@
                 if (booster) booster.throttle = Math.min(booster.throttle + 0.1, 1.0);
             } else if (e.code === 'ArrowDown') {
                 if (booster) booster.throttle = Math.max(booster.throttle - 0.1, 0.0);
-            } else if (e.code === 'ArrowLeft') {
-                if (booster) booster.angle -= 0.1;
-                if (mainStack && mainStack.active) mainStack.angle -= 0.05;
-            } else if (e.code === 'ArrowRight') {
-                 if (booster) booster.angle += 0.1;
-                 if (mainStack && mainStack.active) mainStack.angle += 0.05;
             } else if (e.code === 'KeyX') {
                  if (booster) booster.throttle = 0;
             } else if (e.code === 'Digit1') {
