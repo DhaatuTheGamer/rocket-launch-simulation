@@ -1,29 +1,29 @@
-# Realistic Orbital Launch Simulation
+# Realistic Orbital Launch Simulation v2.0
 
-A high-fidelity web-based physics simulation of an orbital launch vehicle, featuring multi-stage mechanics, atmospheric physics, and propulsive landing capabilities. Built with HTML5 Canvas and vanilla JavaScript.
+A high-fidelity, "best-in-class" web-based physics simulation of an orbital launch vehicle. This project has been upgraded from a simple prototype to a robust simulator featuring **RK4 integration**, **PID autopilots**, **Keplerian orbital mapping**, and **cinema-quality visuals**.
 
-## 🚀 Key Features
+Built with HTML5 Canvas and vanilla JavaScript (no external libraries).
 
-### Physics & Mechanics
-*   **Multi-Stage Rocketry**: Detailed simulation of a two-stage vehicle (`FullStack`, `Booster`, `UpperStage`).
-*   **Staging Mechanics**: Momentum-preserving separation events with interstage debris.
-*   **Propulsive Landing**: Manually pilot the first-stage booster back to Earth using vector thrust control.
-*   **Impact Prediction**: Real-time trajectory calculation displaying a landing impact marker (Red X) for precision landings.
-*   **Atmospheric Physics**: Realistic drag model (`Cd`, `rho`), Dynamic Pressure (`Max Q`) calculation, and exponential atmosphere.
-*   **Orbital Mechanics**: Simulated gravity turn, centrifugal force, and apogee prediction.
+## 🌟 New "Best-in-Class" Features
 
-### Visuals & Immersion
-*   **Active Engine Gimbaling**: Physically accurate engine nozzle rotation that pivots with user input.
-*   **Dynamic Engine Lighting**: Realistic engine glow that illuminates the rocket body and ground, flickering with throttle intensity.
-*   **Dynamic Environment**: Day/Night cycle, sun position, and atmospheric haze that changes with altitude.
-*   **Particle System**: Thousands of particles for exhaust, smoke, fire, sparks, and explosions.
-*   **Visual Effects**: Vapor cones (shockwaves) at transonic speeds/high Q, camera shake, and heat glow.
-*   **Cinematic Cameras**: Three camera modes (Tracking, Onboard Rocket Cam, Fixed Tower Cam) plus time dilation controls.
+### 🛠 UI/UX Enhancements
+*   **Navball (Attitude Indicator):** A fully functional aviation-style Navball showing the rocket's orientation relative to the horizon and the **Prograde Vector** (velocity direction), essential for precise gravity turns.
+*   **Vehicle Assembly Building (VAB):** An interactive "No-Code" configurator before launch. Tweak **Fuel Mass**, **Thrust Limits**, and **Aerodynamics** via sliders to design your own rocket variants without editing code.
+*   **Mobile-Responsive Touch Controls:** Full support for mobile devices with an on-screen virtual joystick for gimbal control and a touch slider for throttle.
+*   **Mission Event Log:** A scrolling timeline that automatically logs critical mission milestones like "LIFTOFF", "SUPERSONIC", "MAX Q", and "MECO".
 
-### Systems
-*   **Audio Engine**: Procedurally generated engine rumble (Brown Noise) with dynamic filtering, staging clunks, and explosions.
-*   **Mission Control Telemetry**: Real-time scrolling graphs for Altitude and Velocity.
-*   **Payload Deployment**: Deployable fairings and satellite payload with solar panel animation.
+### ⚛️ Deep Physics & Simulation
+*   **Runge-Kutta 4 (RK4) Solver:** Upgraded from simple Euler integration to RK4, allowing for extreme precision and stability even at high time-warps (up to 10x).
+*   **PID Autopilot:** A Flight Computer that can autonomously land the booster. It uses a **PID Controller** for attitude stability and calculates a precise **Suicide Burn** to reach 0 m/s exactly at ground level.
+*   **Orbital Map Mode:** A dedicated "Map View" (Toggle `M`) displaying the Earth and the rocket's predicted orbital path/trajectory using real Keplerian mechanics.
+*   **Structural & Thermal Damage:** A dynamic health system. High dynamic pressure (`Max Q`) combined with aggressive angles of attack will tear the rocket apart.
+
+### 🎨 Visuals & Immersion
+*   **Bloom Post-Processing:** A custom rendering pass that draws engine flames to an off-screen buffer, blurs them, and composites them with a `screen` blend mode for blindingly bright, realistic engine glow.
+*   **Audio Callouts:** Integrated Text-to-Speech (TTS) for mission control voiceovers ("Liftoff", "Supersonic", "Max Q").
+*   **Motion Blur:** Subtle alpha-based trail effects to convey speed.
+
+---
 
 ## 🎮 Mission Controls
 
@@ -34,41 +34,45 @@ A high-fidelity web-based physics simulation of an orbital launch vehicle, featu
 *   **ESC**: Reset Simulation
 
 ### Guidance & Navigation
-*   **ARROW KEYS**: 
-    *   `UP/DOWN`: Throttle Control (Booster/Manual)
-    *   `LEFT/RIGHT`: Thrust Vectoring (Tilt) - *Tip: Use for Gravity Turn or Landing*
+*   **ARROW KEYS**:
+    *   `UP/DOWN`: Throttle Control
+    *   `LEFT/RIGHT`: Thrust Vectoring (Gimbal)
+*   **A**: Toggle **PID Autopilot** (Auto-Land Booster)
 *   **X**: Cut Engine (Instant 0% throttle)
 
-### Camera & Time
+### Camera & Tools
 *   **1**: Tracking Cam (Default)
 *   **2**: Onboard Rocket Cam (Cinematic)
 *   **3**: Tower Cam (Fixed)
-*   **B**: Focus Booster (For landing)
+*   **M**: **Orbital Map Mode**
+*   **B**: Switch Focus to Booster
 *   **]**: Increase Time Warp (up to 10x)
-*   **[**: Decrease Time Warp (Slow Mo)
-*   **\\**: Reset Time Scale
+*   **[**: Decrease Time Warp
+*   **\**: Reset Time Scale
 
 ## 🛠️ Installation & Usage
 
 1.  **Clone or Download** this repository.
 2.  **Open** `index.html` in any modern web browser.
-    *   *Note for Audio:* You must click the "Enable Audio" button (or "Start Mission" on the splash screen) to allow the browser to play sound.
+3.  **Click** "Enter Mission Control" to start the audio engine and simulation.
 
 ## 📂 Project Structure
 
-*   `index.html`: UI structure, telemetry graphs, and overlay elements.
+*   `index.html`: UI structure, Navball canvas, VAB modal, and HUD.
 *   `script.js`:
-    *   **Physics Engine**: Rigid body dynamics, gravity, drag, thrust.
-    *   **Audio Engine**: Web Audio API implementation for procedural sound.
-    *   **Game Loop**: Canvas rendering and state management.
-*   `style.css`: HUD styling, glass-morphism effects, and splash screen.
+    *   **RK4 Solver**: Advanced physics integration.
+    *   **PIDController**: Control theory implementation for auto-landing.
+    *   **AudioEngine**: Web Audio API & SpeechSynthesis.
+    *   **Renderer**: Canvas drawing with Bloom and Particle systems.
+*   `style.css`: Glass-morphism UI styling and animations.
 
 ## 💻 Customization
 
-Simulation constants can be tweaked in the `Configuration` section of `script.js`:
+You can now customize the rocket directly in the **VAB Menu** before launch!
+For deeper changes, edit the constants in `script.js`:
 
 ```javascript
-const SCALE_HEIGHT = 7000;  // Atmosphere density scale
-const MAX_THRUST_BOOSTER = 2000000; // Newtons
-const FUEL_MASS = 30000;    // kg
+const SCALE_HEIGHT = 7000;      // Atmosphere height
+const ISP_VAC_BOOSTER = 311;    // Engine efficiency (Vacuum)
+const R_EARTH = 6371000;        // Planet Radius
 ```
