@@ -43,7 +43,7 @@ A high-fidelity web-based physics simulation of an orbital launch vehicle, featu
 *   **B**: Focus Booster (For landing)
 *   **]**: Increase Time Warp (up to 10x)
 *   **[**: Decrease Time Warp (Slow Mo)
-*   **\**: Reset Time Scale
+*   **\\**: Reset Time Scale
 
 ## 🛠️ Installation & Usage
 
