@@ -764,7 +764,7 @@ class Fairing extends Vessel {
         this.drawPlasma(ctx);
         ctx.fillStyle = '#fff';
         ctx.beginPath();
-        if (this.side === -1) { ctx.moveTo(0,0); ctx.lineTo(-20,0); ctx.quadraticCurveTo(0, -40, 0, 0); }
+        if (this.side === -1) { ctx.moveTo(0,0); ctx.lineTo(-20,0); ctx.quadraticCurveTo(0, -40, 0, 0); } 
         else { ctx.moveTo(0,0); ctx.lineTo(20,0); ctx.quadraticCurveTo(0, -40, 0, 0); }
         ctx.fill();
         ctx.restore();
@@ -795,6 +795,9 @@ function initGame() {
     missionLog.clear();
     autopilotEnabled = false;
     document.getElementById('autopilot-btn').innerText = "🤖 Auto-Land: OFF";
+    timeScale = 1.0;
+    cameraMode = 'TRACKING';
+    cameraY = 0;
 }
 
 // --- HELPERS ---
@@ -919,6 +922,9 @@ function animate() {
         if (trackedEntity) {
              let targetY = trackedEntity.y - height * 0.6;
              if (cameraMode === 'ROCKET') targetY = trackedEntity.y - height/2;
+             if (cameraMode === 'TOWER') targetY = 0; // Keep camera near launchpad/ground
+
+             // Camera smoothing
              if (targetY < 0) cameraY += (targetY - cameraY) * 0.1;
              else cameraY += (0 - cameraY) * 0.1;
              
@@ -963,11 +969,13 @@ function animate() {
         ctx.filter = 'none';
         ctx.restore();
 
-        particles.forEach((p, i) => {
+        // Iterate backwards to safely remove particles
+        for (let i = particles.length - 1; i >= 0; i--) {
+            let p = particles[i];
             p.update(groundY, timeScale);
             p.draw(ctx);
             if (p.life <= 0) particles.splice(i, 1);
-        });
+        }
         
         entities.forEach(e => e.draw(ctx, cameraY));
         
@@ -984,6 +992,11 @@ function animate() {
             telemetry.update(performance.now()/1000, alt, vel);
         }
         telemetry.draw();
+        
+        // Time Warp UI
+        ctx.fillStyle = 'white';
+        ctx.font = '16px monospace';
+        ctx.fillText(`TIME WARP: ${timeScale.toFixed(0)}x`, width - 150, 40);
     }
     
     requestAnimationFrame(animate);
@@ -997,14 +1010,26 @@ window.addEventListener('keydown', e => {
     if (e.code === 'KeyS') performStaging();
     if (e.code === 'KeyP') performPayloadDep();
     if (e.code === 'KeyM') cameraMode = (cameraMode === 'MAP' ? 'TRACKING' : 'MAP');
+    if (e.code === 'Escape') initGame(); // RESET
+
+    // Autopilot Toggle
     if (e.code === 'KeyA') {
         autopilotEnabled = !autopilotEnabled;
         document.getElementById('autopilot-btn').innerText = `🤖 Auto-Land: ${autopilotEnabled ? 'ON' : 'OFF'}`;
     }
-    if (e.code === 'Digit1') trackedEntity = entities.find(e => e instanceof UpperStage) || entities[0];
-    if (e.code === 'Digit2') trackedEntity = trackedEntity; 
+
+    // Camera Modes
+    if (e.code === 'Digit1') { cameraMode = 'TRACKING'; trackedEntity = entities.find(e => e instanceof UpperStage) || entities[0]; }
+    if (e.code === 'Digit2') { cameraMode = 'ROCKET'; if(trackedEntity) trackedEntity = trackedEntity; }
+    if (e.code === 'Digit3') { cameraMode = 'TOWER'; }
     if (e.code === 'KeyB' && booster) trackedEntity = booster;
+
+    // Time Warp
+    if (e.key === ']') timeScale = Math.min(10, timeScale + 1);
+    if (e.key === '[') timeScale = Math.max(1, timeScale - 1);
+    if (e.key === '\\') timeScale = 1.0;
     
+    // Throttle Control
     if (e.code === 'ArrowUp' && booster) booster.throttle = Math.min(1, booster.throttle+0.1);
     if (e.code === 'ArrowDown' && booster) booster.throttle = Math.max(0, booster.throttle-0.1);
 });
@@ -1032,7 +1057,7 @@ document.getElementById('start-btn').addEventListener('click', () => {
     document.getElementById('splash-screen').style.opacity = 0;
     setTimeout(() => { document.getElementById('splash-screen').style.display = 'none'; }, 500);
     audio.init(); 
-    document.getElementById('audio-btn').innerText = "🔊 Mute Audio";
+    document.getElementById('audio-btn').innerText = "🔇 Mute Audio";
     audio.muted = false;
     audio.masterGain.gain.setTargetAtTime(0.5, audio.ctx.currentTime, 0.1);
 });
@@ -1048,7 +1073,7 @@ document.getElementById('launch-btn').addEventListener('click', initiateLaunch);
 
 document.getElementById('audio-btn').addEventListener('click', () => {
     const isMuted = audio.toggleMute();
-    document.getElementById('audio-btn').innerText = isMuted ? "🔇 Enable Audio" : "🔊 Mute Audio";
+    document.getElementById('audio-btn').innerText = isMuted ? "🔊 Enable Audio" : "🔇 Mute Audio";
 });
 
 const joystickZone = document.getElementById('joystick-zone');
