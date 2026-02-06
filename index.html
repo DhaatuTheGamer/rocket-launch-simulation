@@ -1,11 +1,13 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Realistic Rocket Launch</title>
     <link rel="stylesheet" href="style.css">
 </head>
+
 <body>
 
     <div id="vab-modal" style="display:none;">
@@ -31,15 +33,18 @@
         <div class="content">
             <h1>ORBITAL LAUNCH SIMULATOR</h1>
             <p class="subtitle">Multi-Stage Physics & Landing Simulation</p>
-            
+
             <div class="mission-guide">
                 <h2>📋 Full Mission Profile Guide</h2>
                 <ol>
                     <li><strong>LIFTOFF:</strong> Press <span class="key">SPACE</span>. Engines ignite at T-0.</li>
-                    <li><strong>GRAVITY TURN:</strong> At <strong>2.0 km</strong>, tap <span class="key">RIGHT ARROW</span> to tilt slightly (~10°).</li>
+                    <li><strong>GRAVITY TURN:</strong> At <strong>2.0 km</strong>, tap <span class="key">RIGHT
+                            ARROW</span> to tilt slightly (~10°).</li>
                     <li><strong>MAX Q:</strong> Watch for camera shake and vapor cones around 300 m/s.</li>
-                    <li><strong>STAGING:</strong> When APOGEE > 100km (or fuel low), press <span class="key">S</span>.</li>
-                    <li><strong>LANDING (Optional):</strong> Press <span class="key">B</span> to track Booster. Use <span class="key">ARROWS</span> to guide the <strong>Red Impact Marker</strong> to the pad.</li>
+                    <li><strong>STAGING:</strong> When APOGEE > 100km (or fuel low), press <span class="key">S</span>.
+                    </li>
+                    <li><strong>LANDING (Optional):</strong> Press <span class="key">B</span> to track Booster. Use
+                        <span class="key">ARROWS</span> to guide the <strong>Red Impact Marker</strong> to the pad.</li>
                     <li><strong>ORBIT:</strong> Press <span class="key">1</span> for Upper Stage. Coast to space.</li>
                     <li><strong>PAYLOAD:</strong> In vacuum, press <span class="key">P</span> to deploy Satellite.</li>
                 </ol>
@@ -72,11 +77,11 @@
                 <canvas id="navball" width="100" height="100" style="background:transparent;"></canvas>
             </div>
         </div>
-        
+
         <div id="mission-log">
             <h3>MISSION LOG</h3>
             <ul id="log-list">
-                </ul>
+            </ul>
         </div>
     </div>
 
@@ -109,6 +114,7 @@
 
     <canvas id="canvas"></canvas>
 
-    <script src="script.js"></script>
+    <script type="module" src="js/main.js"></script>
 </body>
+
 </html>

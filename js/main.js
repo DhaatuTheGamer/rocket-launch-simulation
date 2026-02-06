@@ -1,0 +1,513 @@
+import { GRAVITY, PIXELS_PER_METER, DT, R_EARTH, CONFIG } from './constants.js';
+import { state } from './state.js';
+import AudioEngine from './utils/AudioEngine.js';
+import TelemetrySystem from './ui/Telemetry.js';
+import Navball from './ui/Navball.js';
+import MissionLog from './ui/MissionLog.js';
+import Particle from './physics/Particle.js';
+import { FullStack, Booster, UpperStage, Payload, Fairing } from './physics/RocketComponents.js';
+import SAS, { SASModes } from './utils/SAS.js';
+
+// --- Setup Canvas ---
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d', { alpha: false });
+
+// Bloom Canvas
+const bloomCanvas = document.createElement('canvas');
+const bloomCtx = bloomCanvas.getContext('2d');
+
+// --- Global Systems ---
+const audio = new AudioEngine();
+const telemetry = new TelemetrySystem();
+const navball = new Navball();
+const missionLog = new MissionLog();
+const sas = new SAS();
+
+// Assign to state for global access from vessels
+state.audio = audio;
+state.missionLog = missionLog;
+
+// --- CAMERA & GAME STATE ---
+let trackedEntity = null;
+let mainStack = null;
+let booster = null;
+let cameraMode = 'TRACKING';
+let timeScale = 1.0;
+let cameraShakeX = 0, cameraShakeY = 0;
+let missionState = { liftoff: false, supersonic: false, maxq: false, meco: false };
+
+window.addEventListener('resize', resize);
+resize();
+
+function resize() {
+    state.width = window.innerWidth;
+    state.height = window.innerHeight;
+    canvas.width = state.width;
+    canvas.height = state.height;
+    bloomCanvas.width = state.width / 4;
+    bloomCanvas.height = state.height / 4;
+    state.groundY = state.height - 50;
+}
+
+// --- HELPERS ---
+function performStaging() {
+    if (!mainStack || !mainStack.active) return;
+    audio.playStaging();
+    mainStack.active = false;
+    state.entities.splice(state.entities.indexOf(mainStack), 1);
+
+    const b = new Booster(mainStack.x, mainStack.y + 60, mainStack.vx, mainStack.vy);
+    const u = new UpperStage(mainStack.x, mainStack.y, mainStack.vx, mainStack.vy);
+
+    u.vy -= 2; b.vy += 2; b.angle = 0.05;
+    state.entities.push(b); state.entities.push(u);
+    booster = b; mainStack = u; trackedEntity = u;
+
+    document.getElementById('booster-stats').style.display = 'block';
+    missionLog.log("STAGE SEPARATION CONFIRMED", "info");
+}
+
+function performPayloadDep() {
+    const u = state.entities.find(e => e instanceof UpperStage);
+    if (!u || u.fairingsDeployed) return;
+    audio.playStaging();
+    u.fairingsDeployed = true;
+    state.entities.push(new Fairing(u.x - 10, u.y - 30, u.vx, u.vy, -1));
+    state.entities.push(new Fairing(u.x + 10, u.y - 30, u.vx, u.vy, 1));
+    const p = new Payload(u.x, u.y - 20, u.vx, u.vy - 1);
+    state.entities.push(p);
+    trackedEntity = p;
+    missionLog.log("PAYLOAD DEPLOYMENT", "info");
+}
+
+function initGame() {
+    state.entities = [];
+    state.particles = [];
+    mainStack = new FullStack();
+    mainStack.y = state.groundY - mainStack.h;
+    state.entities.push(mainStack);
+    trackedEntity = mainStack;
+    missionState = { liftoff: false, supersonic: false, maxq: false, meco: false };
+    missionLog.clear();
+    state.autopilotEnabled = false;
+    document.getElementById('autopilot-btn').innerText = "🤖 Auto-Land: OFF";
+    timeScale = 1.0;
+    booster = null;
+    cameraMode = 'TRACKING';
+    state.cameraY = 0;
+}
+
+function initiateLaunch() {
+    if (missionState.liftoff) return; // Prevent double launch
+    mainStack.throttle = 1.0;
+    missionState.liftoff = true;
+    audio.speak("Liftoff");
+}
+
+// --- RENDERERS ---
+
+function drawMap() {
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, state.width, state.height);
+
+    const cx = state.width / 2;
+    const cy = state.height / 2;
+    const scale = 0.00005;
+
+    // Draw Earth
+    const r_earth_px = R_EARTH * scale;
+    ctx.fillStyle = '#3498db';
+    ctx.beginPath(); ctx.arc(cx, cy, r_earth_px, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = '#fff'; ctx.lineWidth = 1; ctx.stroke();
+
+    // Draw Orbits
+    state.entities.forEach(e => {
+        if (e.crashed) return;
+        const alt = (state.groundY - e.y - e.h) / PIXELS_PER_METER;
+        const r = R_EARTH + alt;
+        const phi = e.x / R_EARTH;
+
+        // Draw Object
+        const ox = cx + Math.cos(phi - Math.PI / 2) * r * scale;
+        const oy = cy + Math.sin(phi - Math.PI / 2) * r * scale;
+
+        ctx.fillStyle = e === trackedEntity ? '#f1c40f' : '#aaa';
+        ctx.beginPath(); ctx.arc(ox, oy, 3, 0, Math.PI * 2); ctx.fill();
+
+        // Orbital Path Prediction
+        ctx.beginPath();
+        ctx.strokeStyle = ctx.fillStyle;
+        ctx.lineWidth = 1;
+
+        let simState = { x: e.x / 10, y: e.y / 10, vx: e.vx, vy: e.vy, mass: e.mass };
+        let steps = 200;
+        let dtPred = 10;
+
+        ctx.moveTo(ox, oy);
+
+        for (let i = 0; i < steps; i++) {
+            const pAlt = (state.groundY / 10 - simState.y - e.h / 10);
+            const pRad = pAlt + R_EARTH;
+            const pG = 9.8 * Math.pow(R_EARTH / pRad, 2);
+            const pFy = pG - (simState.vx ** 2) / pRad;
+
+            simState.vy += pFy * dtPred;
+            simState.x += simState.vx * dtPred;
+            simState.y += simState.vy * dtPred;
+
+            if (simState.y * 10 > state.groundY) break;
+
+            const pPhi = (simState.x * 10) / R_EARTH;
+            const pR = R_EARTH + (state.groundY / 10 - simState.y - e.h / 10);
+
+            const px = cx + Math.cos(pPhi - Math.PI / 2) * pR * scale;
+            const py = cy + Math.sin(pPhi - Math.PI / 2) * pR * scale;
+            ctx.lineTo(px, py);
+        }
+        ctx.stroke();
+    });
+
+    ctx.fillStyle = 'white';
+    ctx.font = '20px monospace';
+    ctx.fillText("ORBITAL MAP MODE [M]", 20, 40);
+}
+
+function animate() {
+    if (cameraMode === 'MAP') {
+        drawMap();
+    } else {
+        ctx.clearRect(0, 0, state.width, state.height);
+
+        // Update SAS
+        if (mainStack && mainStack.active && sas.mode !== SASModes.OFF) {
+            // Check for manual override
+            if (keys['ArrowLeft'] || keys['ArrowRight']) {
+                // Manual override: Reset stability to new header when released?
+                // For now just letting manual input fight/add to SAS is messy.
+                // Ideally: if manual input, SAS is suspended.
+            } else {
+                const sasOut = sas.update(mainStack, DT * timeScale);
+                mainStack.gimbalAngle = sasOut;
+            }
+        }
+
+        const simDt = DT * timeScale;
+        state.entities.forEach(e => {
+            // Updated to pass keys and handle control
+            // Note: e.applyPhysics(simDt, keys) handles controls IF it's a controlled vessel
+            // But we need to make sure `keys` is passed only to controlled entities?
+            // Actually, the original code had `if (this === booster) ...`
+            // So passing keys to all is fine, they internally check if they are controllable.
+            // Wait, I need to pass a property "isBooster" or the logic inside `Vessel` needs to know.
+            // In `Vessel.js`, I didn't fully implement the check `this === booster`.
+            // I'll rely on `e instanceof Booster` inside `applyPhysics` if needed, OR
+            // `Booster` overrides `applyPhysics`.
+            // `Vessel` now has `control(dt, keys, isBooster)`.
+            // `Booster.applyPhysics` calls `runAutopilot` if enabled.
+
+            // I need to ensure `keys` are available here.
+            e.applyPhysics(simDt, keys);
+            e.spawnExhaust(timeScale);
+        });
+
+        if (trackedEntity) {
+            const alt = (state.groundY - trackedEntity.y - trackedEntity.h) / PIXELS_PER_METER;
+            const vel = Math.sqrt(trackedEntity.vx ** 2 + trackedEntity.vy ** 2);
+            if (!missionState.liftoff && alt > 20) { missionState.liftoff = true; missionLog.log("LIFTOFF", "warn"); audio.speak("Liftoff"); }
+            if (!missionState.supersonic && vel > 340) { missionState.supersonic = true; missionLog.log("SUPERSONIC", "info"); }
+            if (!missionState.maxq && trackedEntity.q > 5000) { missionState.maxq = true; missionLog.log("MAX Q", "warn"); audio.speak("Max Q"); }
+        }
+
+        if (trackedEntity) {
+            let targetY = trackedEntity.y - state.height * 0.6;
+            if (cameraMode === 'ROCKET') targetY = trackedEntity.y - state.height / 2;
+            if (cameraMode === 'TOWER') targetY = 0;
+
+            if (targetY < 0) state.cameraY += (targetY - state.cameraY) * 0.1;
+            else state.cameraY += (0 - state.cameraY) * 0.1;
+
+            const q = trackedEntity.q || 0;
+            const shake = Math.min(q / 200, 10);
+            cameraShakeX = (Math.random() - 0.5) * shake;
+            cameraShakeY = (Math.random() - 0.5) * shake;
+        }
+
+        const alt = -state.cameraY;
+        const spaceRatio = Math.min(Math.max(alt / 50000, 0), 1);
+        const r = 135 * (1 - spaceRatio);
+        const g = 206 * (1 - spaceRatio);
+        const b = 235 * (1 - spaceRatio) + 20 * spaceRatio;
+        ctx.fillStyle = `rgb(${r},${g},${b})`;
+        ctx.fillRect(0, 0, state.width, state.height);
+
+        ctx.save();
+        ctx.translate(cameraShakeX, -state.cameraY + cameraShakeY);
+
+        ctx.fillStyle = '#2ecc71'; ctx.fillRect(-50000, state.groundY, 100000, 500);
+
+        bloomCtx.clearRect(0, 0, bloomCanvas.width, bloomCanvas.height);
+        bloomCtx.save();
+        bloomCtx.scale(0.25, 0.25);
+        bloomCtx.translate(cameraShakeX, -state.cameraY + cameraShakeY);
+
+        state.particles.forEach(p => {
+            if (p.type === 'fire') {
+                bloomCtx.beginPath();
+                bloomCtx.arc(p.x, p.y, p.size * 2, 0, Math.PI * 2);
+                bloomCtx.fillStyle = 'rgba(255, 100, 0, 1)';
+                bloomCtx.fill();
+            }
+        });
+        bloomCtx.restore();
+
+        ctx.save();
+        ctx.globalCompositeOperation = 'screen';
+        ctx.filter = 'blur(10px)';
+        ctx.drawImage(bloomCanvas, 0, 0, state.width, state.height);
+        ctx.filter = 'none';
+        ctx.restore();
+
+        for (let i = state.particles.length - 1; i >= 0; i--) {
+            let p = state.particles[i];
+            p.update(state.groundY, timeScale);
+            p.draw(ctx);
+            if (p.life <= 0) state.particles.splice(i, 1);
+        }
+
+        state.entities.forEach(e => e.draw(ctx, state.cameraY));
+
+        ctx.restore();
+
+        if (trackedEntity) {
+            const velAngle = Math.atan2(trackedEntity.vx, -trackedEntity.vy);
+            navball.draw(trackedEntity.angle, velAngle);
+            const alt = (state.groundY - trackedEntity.y - trackedEntity.h) / PIXELS_PER_METER;
+            const vel = Math.sqrt(trackedEntity.vx ** 2 + trackedEntity.vy ** 2);
+            const domAlt = document.getElementById('alt');
+            const domVel = document.getElementById('vel');
+            const domApogee = document.getElementById('apogee');
+            if (domAlt) domAlt.innerText = (alt / 1000).toFixed(1);
+            if (domVel) domVel.innerText = vel.toFixed(0);
+            if (domApogee) domApogee.innerText = (alt / 1000).toFixed(1);
+            telemetry.update(performance.now() / 1000, alt, vel);
+
+            // Booster Stats
+            if (booster && booster.active) {
+                const boostFuel = document.getElementById('boost-fuel');
+                const boostThrust = document.getElementById('boost-thrust');
+                if (boostFuel) boostFuel.innerText = (booster.fuel * 100).toFixed(0);
+                if (boostThrust) boostThrust.innerText = (booster.throttle * 100).toFixed(0);
+            }
+        }
+        telemetry.draw();
+
+        ctx.fillStyle = 'white';
+        ctx.font = '16px monospace';
+        ctx.fillText(`TIME WARP: ${timeScale.toFixed(0)}x`, state.width - 150, 40);
+    }
+
+    requestAnimationFrame(animate);
+}
+
+// --- CONTROLS ---
+const keys = {};
+window.addEventListener('keydown', e => {
+    keys[e.code] = true;
+    if (e.code === 'Space') { if (!missionState.liftoff) initiateLaunch(); }
+    if (e.code === 'KeyS') performStaging();
+    if (e.code === 'KeyP') performPayloadDep();
+    if (e.code === 'KeyM') cameraMode = (cameraMode === 'MAP' ? 'TRACKING' : 'MAP');
+    if (e.code === 'Escape') initGame();
+
+    if (e.code === 'KeyA') {
+        state.autopilotEnabled = !state.autopilotEnabled;
+        document.getElementById('autopilot-btn').innerText = `🤖 Auto-Land: ${state.autopilotEnabled ? 'ON' : 'OFF'}`;
+    }
+
+    if (e.code === 'Digit1') { cameraMode = 'TRACKING'; trackedEntity = state.entities.find(e => e instanceof UpperStage) || state.entities[0]; }
+    if (e.code === 'Digit2') { cameraMode = 'ROCKET'; if (trackedEntity) trackedEntity = trackedEntity; }
+    if (e.code === 'Digit3') { cameraMode = 'TOWER'; }
+    if (e.code === 'KeyB' && booster) trackedEntity = booster;
+
+    if (e.key === ']') timeScale = Math.min(10, timeScale + 1);
+    if (e.key === '[') timeScale = Math.max(1, timeScale - 1);
+    if (e.key === '\\') timeScale = 1.0;
+
+    if (e.code === 'ArrowUp') {
+        if (booster && booster.active) booster.throttle = Math.min(1, booster.throttle + 0.1);
+        else if (mainStack && mainStack.active) mainStack.throttle = Math.min(1, mainStack.throttle + 0.1);
+    }
+    if (e.code === 'ArrowDown') {
+        if (booster && booster.active) booster.throttle = Math.max(0, booster.throttle - 0.1);
+        else if (mainStack && mainStack.active) mainStack.throttle = Math.max(0, mainStack.throttle - 0.1);
+    }
+});
+window.addEventListener('keyup', e => keys[e.code] = false);
+
+document.getElementById('open-vab-btn').addEventListener('click', () => {
+    document.getElementById('vab-modal').style.display = 'flex';
+});
+
+document.getElementById('vab-launch-btn').addEventListener('click', () => {
+    CONFIG.FUEL_MASS = parseInt(document.getElementById('rng-fuel').value) * 1000;
+    CONFIG.MAX_THRUST_BOOSTER = parseFloat(document.getElementById('rng-thrust').value) * 1000000;
+    CONFIG.DRAG_COEFF = parseFloat(document.getElementById('rng-drag').value);
+    document.getElementById('vab-modal').style.display = 'none';
+    initGame();
+});
+
+['fuel', 'thrust', 'drag'].forEach(id => {
+    document.getElementById(`rng-${id}`).addEventListener('input', e => {
+        document.getElementById(`val-${id}`).innerText = e.target.value;
+    });
+});
+
+document.getElementById('start-btn').addEventListener('click', () => {
+    document.getElementById('splash-screen').style.opacity = 0;
+    setTimeout(() => { document.getElementById('splash-screen').style.display = 'none'; }, 500);
+    audio.init();
+    document.getElementById('audio-btn').innerText = "🔇 Mute Audio";
+    audio.muted = false;
+    audio.masterGain.gain.setTargetAtTime(0.5, audio.ctx.currentTime, 0.1);
+});
+
+document.getElementById('launch-btn').addEventListener('click', initiateLaunch);
+
+document.getElementById('audio-btn').addEventListener('click', () => {
+    const isMuted = audio.toggleMute();
+    document.getElementById('audio-btn').innerText = isMuted ? "🔊 Enable Audio" : "🔇 Mute Audio";
+});
+
+// Mobile Controls (Simplified for now)
+const joystickZone = document.getElementById('joystick-zone');
+const joystickKnob = document.getElementById('joystick-knob');
+const throttleZone = document.getElementById('throttle-zone');
+const throttleHandle = document.getElementById('throttle-handle');
+let touchIdJoy = null, touchIdThrot = null;
+
+if (joystickZone) {
+    joystickZone.addEventListener('touchstart', e => {
+        e.preventDefault();
+        touchIdJoy = e.changedTouches[0].identifier;
+        updateJoystick(e.changedTouches[0]);
+    }, { passive: false });
+    joystickZone.addEventListener('touchmove', e => {
+        e.preventDefault();
+        for (let i = 0; i < e.changedTouches.length; i++) {
+            if (e.changedTouches[i].identifier === touchIdJoy) updateJoystick(e.changedTouches[i]);
+        }
+    }, { passive: false });
+    joystickZone.addEventListener('touchend', e => {
+        e.preventDefault();
+        touchIdJoy = null;
+        joystickKnob.style.top = '35px'; joystickKnob.style.left = '35px';
+        keys['ArrowLeft'] = false; keys['ArrowRight'] = false;
+    });
+}
+function updateJoystick(touch) {
+    const rect = joystickZone.getBoundingClientRect();
+    const cx = rect.left + rect.width / 2;
+    const cy = rect.top + rect.height / 2;
+    const dx = touch.clientX - cx;
+    const dy = touch.clientY - cy;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    const max = 35;
+    const f = dist > max ? max / dist : 1;
+    joystickKnob.style.left = (35 + dx * f) + 'px';
+    joystickKnob.style.top = (35 + dy * f) + 'px';
+    if (dx < -10) { keys['ArrowLeft'] = true; keys['ArrowRight'] = false; }
+    else if (dx > 10) { keys['ArrowRight'] = true; keys['ArrowLeft'] = false; }
+    else { keys['ArrowLeft'] = false; keys['ArrowRight'] = false; }
+}
+
+if (throttleZone) {
+    throttleZone.addEventListener('touchstart', e => {
+        e.preventDefault();
+        touchIdThrot = e.changedTouches[0].identifier;
+        updateThrottle(e.changedTouches[0]);
+    }, { passive: false });
+    throttleZone.addEventListener('touchmove', e => {
+        e.preventDefault();
+        for (let i = 0; i < e.changedTouches.length; i++) {
+            if (e.changedTouches[i].identifier === touchIdThrot) updateThrottle(e.changedTouches[i]);
+        }
+    }, { passive: false });
+}
+function updateThrottle(touch) {
+    const rect = throttleZone.getBoundingClientRect();
+    let val = 1.0 - (touch.clientY - rect.top) / rect.height;
+    val = Math.max(0, Math.min(1, val));
+    throttleHandle.style.bottom = (val * (rect.height - 30)) + 'px';
+    if (booster && booster.active) booster.throttle = val;
+    else if (mainStack && mainStack.active) mainStack.throttle = val;
+}
+document.getElementById('btn-stage').addEventListener('touchstart', (e) => { e.preventDefault(); performStaging(); });
+document.getElementById('btn-payload').addEventListener('touchstart', (e) => { e.preventDefault(); performPayloadDep(); });
+document.getElementById('btn-cam').addEventListener('touchstart', (e) => { e.preventDefault(); cameraMode = (cameraMode === 'TRACKING' ? 'ROCKET' : 'TRACKING'); });
+
+// --- SAS CONTROLS ---
+const sasButtons = {
+    [SASModes.OFF]: document.getElementById('sas-off'),
+    [SASModes.STABILITY]: document.getElementById('sas-stability'),
+    [SASModes.PROGRADE]: document.getElementById('sas-prograde'),
+    [SASModes.RETROGRADE]: document.getElementById('sas-retrograde')
+};
+
+function setSASMode(mode) {
+    if (!trackedEntity) return;
+    sas.setMode(mode, trackedEntity.angle);
+    Object.values(sasButtons).forEach(btn => btn.classList.remove('active'));
+    if (sasButtons[mode]) sasButtons[mode].classList.add('active');
+    missionLog.log(`SAS MODE: ${mode}`, 'info');
+}
+
+Object.entries(sasButtons).forEach(([mode, btn]) => {
+    btn.addEventListener('click', () => setSASMode(mode));
+});
+
+// Update Loop Injection
+function updateSAS(dt) {
+    if (!trackedEntity || trackedEntity.crashed) return;
+
+    // Only apply to active controllable vessels
+    // We assume trackedEntity is the one we want to control with SAS
+    // But typically SAS applies to the active commanded vessel.
+
+    let controlledVessel = null;
+    if (mainStack && mainStack.active) controlledVessel = mainStack;
+    else if (booster && booster.active && trackedEntity === booster) controlledVessel = booster;
+    // If we are tracking booster and it's active, control it.
+    // If we are tracking payload/upper but mainStack is the active one...
+
+    if (controlledVessel) {
+        // If Manual Inputs are active, override SAS (switch to Stability or Off?)
+        // For now, let's say SAS overrides manual if ON, or Manual overrides if keys pressed.
+        // Simple approach: If keys pressed, SAS = OFF or Temporarily suspended.
+
+        let manualInput = false;
+        if (keys['ArrowLeft'] || keys['ArrowRight']) manualInput = true;
+
+        if (manualInput) {
+            if (sas.mode !== SASModes.OFF) {
+                // optionally turn off or just yield
+                // let's verify manual override later.
+                // For now, let arrows affect gimbal, and SAS also affect gimbal.
+                // They will fight.
+                // Better: Pass SAS output to applyPhysics
+            }
+        } else if (sas.mode !== SASModes.OFF) {
+            const output = sas.update(controlledVessel, dt);
+            controlledVessel.gimbalAngle = output; // Direct control
+            // Visual feedback?
+        }
+    }
+}
+
+// Modify animate to call updateSAS
+const originalAnimate = animate;
+// Wait, I can't easily hook into animate without replacing the function or editing it.
+// I will edit the animate function loop above using multi-replace.
+
+
+initGame();
+animate();
