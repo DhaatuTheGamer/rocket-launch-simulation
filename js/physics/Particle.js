@@ -1,4 +1,4 @@
-export default class Particle {
+class Particle {
     constructor(x, y, type, vx = 0, vy = 0) {
         this.x = x; this.y = y; this.type = type; this.life = 1.0;
         const spread = type === 'smoke' ? 2 : 1.5;

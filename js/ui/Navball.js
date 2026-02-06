@@ -1,4 +1,4 @@
-export default class Navball {
+class Navball {
     constructor() {
         this.canvas = document.getElementById('navball');
         this.ctx = this.canvas.getContext('2d');

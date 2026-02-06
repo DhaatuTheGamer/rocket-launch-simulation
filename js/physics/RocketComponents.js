@@ -1,9 +1,6 @@
-import Vessel from './Vessel.js';
-import { CONFIG, PIXELS_PER_METER } from '../constants.js';
-import { state } from '../state.js';
-import PIDController from '../utils/PIDController.js';
+// Imports assumed global
 
-export class FullStack extends Vessel {
+class FullStack extends Vessel {
     constructor() {
         super(state.width / 2, state.groundY - 160);
         this.h = 160;
@@ -36,7 +33,7 @@ export class FullStack extends Vessel {
     }
 }
 
-export class Booster extends Vessel {
+class Booster extends Vessel {
     constructor(x, y, vx, vy) {
         super(x, y);
         this.vx = vx; this.vy = vy;
@@ -110,7 +107,7 @@ export class Booster extends Vessel {
     }
 }
 
-export class UpperStage extends Vessel {
+class UpperStage extends Vessel {
     constructor(x, y, vx, vy) {
         super(x, y);
         this.vx = vx; this.vy = vy;
@@ -144,7 +141,7 @@ export class UpperStage extends Vessel {
     }
 }
 
-export class Payload extends Vessel {
+class Payload extends Vessel {
     constructor(x, y, vx, vy) {
         super(x, y);
         this.vx = vx; this.vy = vy; this.mass = 1000; this.w = 20; this.h = 20;
@@ -160,7 +157,7 @@ export class Payload extends Vessel {
     }
 }
 
-export class Fairing extends Vessel {
+class Fairing extends Vessel {
     constructor(x, y, vx, vy, side) {
         super(x, y);
         this.vx = vx + side * 5; this.vy = vy; this.side = side; this.active = false;

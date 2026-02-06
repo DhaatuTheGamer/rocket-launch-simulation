@@ -1,4 +1,4 @@
-export default class PIDController {
+class PIDController {
     constructor(kp, ki, kd, setpoint = 0) {
         this.kp = kp;
         this.ki = ki;

@@ -1,4 +1,4 @@
-export const state = {
+const state = {
     groundY: 0,
     width: 0,
     height: 0,

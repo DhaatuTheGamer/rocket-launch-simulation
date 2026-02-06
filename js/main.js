@@ -1,12 +1,5 @@
-import { GRAVITY, PIXELS_PER_METER, DT, R_EARTH, CONFIG } from './constants.js';
-import { state } from './state.js';
-import AudioEngine from './utils/AudioEngine.js';
-import TelemetrySystem from './ui/Telemetry.js';
-import Navball from './ui/Navball.js';
-import MissionLog from './ui/MissionLog.js';
-import Particle from './physics/Particle.js';
-import { FullStack, Booster, UpperStage, Payload, Fairing } from './physics/RocketComponents.js';
-import SAS, { SASModes } from './utils/SAS.js';
+// No imports needed, loaded via script tags
+
 
 // --- Setup Canvas ---
 const canvas = document.getElementById('canvas');

@@ -1,13 +1,13 @@
-export const GRAVITY = 9.8;
-export const PIXELS_PER_METER = 10;
-export const FPS = 60;
-export const DT = 1 / FPS;
-export const SCALE_HEIGHT = 7000;
-export const RHO_SL = 1.225;
-export const R_EARTH = 6371000;
+const GRAVITY = 9.8;
+const PIXELS_PER_METER = 10;
+const FPS = 60;
+const DT = 1 / FPS;
+const SCALE_HEIGHT = 7000;
+const RHO_SL = 1.225;
+const R_EARTH = 6371000;
 
 // Configurable Physics Constants (Mutable)
-export const CONFIG = {
+const CONFIG = {
     MAX_THRUST_BOOSTER: 2000000,
     MAX_THRUST_UPPER: 500000,
     MASS_BOOSTER: 40000,

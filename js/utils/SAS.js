@@ -1,13 +1,13 @@
-import PIDController from './PIDController.js';
+// Imports assumed global: PIDController
 
-export const SASModes = {
+const SASModes = {
     OFF: 'OFF',
     STABILITY: 'STABILITY',
     PROGRADE: 'PROGRADE',
     RETROGRADE: 'RETROGRADE'
 };
 
-export default class SAS {
+class SAS {
     constructor() {
         this.mode = SASModes.OFF;
         this.pid = new PIDController(5.0, 0.1, 50.0); // Tuning for angle control

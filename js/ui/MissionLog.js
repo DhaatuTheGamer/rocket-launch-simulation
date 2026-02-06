@@ -1,4 +1,4 @@
-export default class MissionLog {
+class MissionLog {
     constructor() {
         this.el = document.getElementById('log-list');
         this.events = [];

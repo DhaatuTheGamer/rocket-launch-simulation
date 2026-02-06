@@ -1,4 +1,4 @@
-export default class AudioEngine {
+class AudioEngine {
     constructor() {
         this.ctx = null;
         this.masterGain = null;

@@ -1,9 +1,6 @@
-import { GRAVITY, PIXELS_PER_METER, SCALE_HEIGHT, RHO_SL, R_EARTH, CONFIG } from '../constants.js';
-import { state } from '../state.js';
-import Particle from './Particle.js';
-import PIDController from '../utils/PIDController.js';
+// Imports assumed global: GRAVITY, PIXELS_PER_METER, etc.
 
-export default class Vessel {
+class Vessel {
     constructor(x, y) {
         this.x = x; this.y = y;
         this.vx = 0; this.vy = 0;
@@ -87,19 +84,21 @@ export default class Vessel {
     applyPhysics(dt, keys) {
         if (this.crashed) return;
 
-        // Need to check for control authority. 
-        // This logic was "isControllable". We'll pass `keys` from main.js if it's the controlled vessel
-        // But for now let's just use the method signature to allow passing input
+        // Apply Control Input
+        // Determine if this vessel is the one being controlled (e.g. by checking if it's the tracked entity or just always applying if keys start acting on it?)
+        // In main.js, we pass keys to ALL entities. We should trust the entity to know if it's active.
+        // The `control` method handles `autopilot` for Boosters.
 
-        // This part needs to be handled by the caller or specialized method, 
-        // but for now we'll assume we handle it here if we can access keys.
-        // Since keys are not global, we might need to modify this.
-        // For this step, I'll assume `keys` will be passed or handled in a `control(dt, keys)` method.
-        // But to keep it working like before:
+        // We pass `this instanceof Booster` as a flag if needed, or check constructor name, but `this` context is enough.
+        // Actually `control` method signature I added below takes `isBooster`. 
+        // Let's assume we can detect it or pass it.
+        // For now, let's just pass `this.constructor.name === 'Booster'`
 
-        // Note: The original code used a global `keys` object.
-        // I will add a `control` method that main calls.
+        const isBooster = (this.constructor.name === 'Booster');
+        this.control(dt, keys, isBooster);
 
+        // Apply Physics Integration
+        this.updatePhysics(dt);
     }
 
     // New method to replace inline control logic
