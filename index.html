@@ -25,6 +25,21 @@
                 <label>Aerodynamics (Cd): <span id="val-drag">0.5</span></label>
                 <input type="range" id="rng-drag" min="0.1" max="1.0" step="0.1" value="0.5">
             </div>
+
+            <!-- IMPROVEMENT #3: VAB Stats Display -->
+            <div id="vab-stats">
+                <div class="vab-stat">
+                    <div class="vab-stat-label">Delta-V</div>
+                    <div class="vab-stat-value" id="vab-dv">3,200</div>
+                    <div class="vab-stat-label">m/s</div>
+                </div>
+                <div class="vab-stat">
+                    <div class="vab-stat-label">TWR</div>
+                    <div class="vab-stat-value" id="vab-twr">1.45</div>
+                    <div class="vab-stat-label">ratio</div>
+                </div>
+            </div>
+
             <button id="vab-launch-btn" class="primary large">GO FOR LAUNCH</button>
         </div>
     </div>
@@ -115,22 +130,36 @@
             <canvas id="graph-canvas"></canvas>
         </div>
 
-        <!-- SAS Controls -->
+        <!-- IMPROVEMENT #10: Camera Panel -->
+        <div id="camera-panel">
+            <button data-cam="1" class="active">👁 Follow</button>
+            <button data-cam="2">🔄 Orbit</button>
+            <button data-cam="3">🎬 Cinema</button>
+        </div>
+
+        <!-- SAS Controls - Enhanced -->
         <div id="sas-controls">
-            <div style="margin-bottom: 5px; font-weight: bold; color: #3498db; text-align:right;">SAS CONTROL
-            </div>
+            <div class="sas-title">SAS CONTROL</div>
             <div class="sas-group">
                 <button id="sas-off" class="sas-btn active">OFF</button>
-                <button id="sas-stability" class="sas-btn">STABILITY</button>
+                <button id="sas-stability" class="sas-btn">⚡ STABILITY</button>
             </div>
             <div class="sas-group">
-                <button id="sas-prograde" class="sas-btn">PROGRADE</button>
-                <button id="sas-retrograde" class="sas-btn">RETROGRADE</button>
+                <button id="sas-prograde" class="sas-btn">⬆ PROGRADE</button>
+                <button id="sas-retrograde" class="sas-btn">⬇ RETROGRADE</button>
+            </div>
+            <div id="sas-mode-indicator">
+                <span class="icon">🎯</span>
+                <span id="sas-mode-text">OFF</span>
             </div>
         </div>
 
+        <!-- IMPROVEMENT #5: Collapsible Mission Log -->
         <div id="mission-log">
-            <h3>MISSION LOG</h3>
+            <h3 onclick="document.getElementById('mission-log').classList.toggle('collapsed')">
+                MISSION LOG
+                <button id="log-toggle">−</button>
+            </h3>
             <ul id="log-list">
             </ul>
         </div>
@@ -143,11 +172,21 @@
 
     <div id="status-msg">T-MINUS 3 SECONDS</div>
 
+    <!-- IMPROVEMENT #7: Onboarding Tooltip Overlay -->
+    <div id="tooltip-overlay" class="tooltip-overlay">
+        <div class="tooltip-box">
+            <h3>🚀 Welcome to Mission Control!</h3>
+            <p>Ready for your first launch? Press <span class="key-hint">SPACE</span> to ignite the engines!</p>
+            <p style="font-size: 0.8rem; color: #888;">Use arrow keys to steer, SHIFT/CTRL for throttle.</p>
+            <button id="tooltip-dismiss">GOT IT!</button>
+        </div>
+    </div>
+
     <div id="controls">
-        <button id="launch-btn" class="primary">Initiate Launch</button>
+        <button id="launch-btn" class="primary state-launch">🚀 INITIATE LAUNCH</button>
         <button id="autopilot-btn">🤖 Auto-Land: OFF</button>
-        <button id="audio-btn">🔊 Enable Audio</button>
-        <button id="reset-btn" onclick="location.reload()">Reset</button>
+        <button id="audio-btn" class="disabled">🔇 Enable Audio</button>
+        <button id="reset-btn" onclick="location.reload()">🔄 Reset</button>
     </div>
 
     <div id="mobile-controls">

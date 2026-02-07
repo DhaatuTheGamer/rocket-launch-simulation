@@ -289,45 +289,12 @@ class Game {
             // Ground
             this.ctx.fillStyle = '#2ecc71'; this.ctx.fillRect(-50000, this.groundY, 100000, 500);
 
-            // Entities
-            this.particles.forEach(p => p.draw(this.ctx)); // Particles drawn in world space
-            this.entities.forEach(e => e.draw(this.ctx, this.cameraY)); // CamY passed but we translated?
-            // Vessel.draw uses camY to translate AGAIN. 
-            // We need to fix this or be consistent. 
-            // Existing code in Vessel.js: ctx.translate(this.x, this.y - camY);
-            // But here we did ctx.translate(..., -cameraY ...);
-            // So if we pass cameraY to Vessel.draw, it will subtract it TWICE.
-            // FIX: Pass 0 to Vessel.draw if we already translated context.
-            // OR: Don't translate context here, but do it in draw calls?
-            // Existing main.js translated context ONLY for blooms and ground, 
-            // but `e.draw(ctx, state.cameraY)` handled its own translation?
-            // Let's check Vessel.draw: `ctx.translate(this.x, this.y - camY);`
-            // So Vessel expects to handle Y translation.
-            // In main.js, ground drawing used `ctx.translate`, but entity drawing was OUTSIDE that save/restore block?
-            // Let's double check main.js logic later. 
-            // For now, I'll stick to the safe bet: 
-            // Translate for ground, Restore. Then call e.draw passing cameraY.
+            // Particles (world space, already translated)
+            this.particles.forEach(p => p.draw(this.ctx));
 
-            this.ctx.restore(); // Undo the camera translation for entities causing double shift?
-            // Wait, if I undo it, then ground is drawn correctly relative to camera.
-            // But if I call e.draw(ctx, cameraY), it acts correctly.
-            // BUT particles need to be drawn with camera offset.
+            // Entities - pass 0 since context is already translated by cameraY
+            this.entities.forEach(e => e.draw(this.ctx, 0));
 
-            // RE-EVALUATE: 
-            // Ground needs translation.
-            // Particles need translation or manual offset.
-            // Vessels handle their own offset.
-
-            // So:
-            // 1. Draw Sky (No Trans)
-            // 2. Trans(Cam) -> Draw Ground -> Restore.
-            // 3. Vessels.draw(camY) logic.
-            // 4. Particles? Check Particle.update. `this.y -= timeScale`. `draw` is simple `ctx.arc(this.x, this.y...)`
-            // So Particles store World Y. They need Camera Transform.
-
-            this.ctx.save();
-            this.ctx.translate(this.cameraShakeX, -this.cameraY + this.cameraShakeY);
-            this.particles.forEach(p => p.draw(this.ctx)); // Particles drawn in world space
             this.ctx.restore();
 
             // HUD Elements in Screen Space
