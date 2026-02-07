@@ -42,145 +42,146 @@
                             ARROW</span> to tilt slightly (~10°).</li>
                     <li><strong>MAX Q:</strong> Watch for camera shake and vapor cones around 300 m/s.</li>
                     <li><strong>STAGING:</strong> When APOGEE > 100km (or fuel low), press <span class="key">S</span>.
-                        <h1 class="glow-text">ORBITAL LAUNCH SIMULATOR</h1>
-                        <div class="splash-menu">
-                            <div id="instruction-panel"
-                                style="background:rgba(0,0,0,0.5); padding:15px; border-radius:8px; margin-bottom:20px; text-align:left; max-width:400px; font-size: 0.9rem; border: 1px solid rgba(255,255,255,0.2);">
-                                <h3
-                                    style="margin-top:0; color:#3498db; border-bottom:1px solid #3498db; padding-bottom:5px;">
-                                    FLIGHT MANUAL</h3>
-                                <ul style="padding-left:20px; color:#ddd; line-height:1.6;">
-                                    <li><strong>Launch:</strong> Press <span style="color:#f1c40f">[SPACE]</span> to
-                                        ignite.</li>
-                                    <li><strong>Throttle:</strong> <span style="color:#f1c40f">[SHIFT]</span> / <span
-                                            style="color:#f1c40f">[CTRL]</span> or Touch Slider.</li>
-                                    <li><strong>Steer:</strong> <span style="color:#f1c40f">[ARROWS]</span> or Virtual
-                                        Joystick.</li>
-                                    <li><strong>Staging:</strong> Press <span style="color:#f1c40f">[S]</span> when fuel
-                                        empty.</li>
-                                    <li><strong>Map:</strong> Press <span style="color:#f1c40f">[M]</span> to view
-                                        Orbit.</li>
-                                    <li><strong>SAS:</strong> Press <span style="color:#f1c40f">[T]</span> for Stability
-                                        Assist.</li>
-                                </ul>
-                                <div style="margin-top:10px; font-size:0.8rem; color:#aaa; font-style:italic;">
-                                    Tip: Use gravity turn at 5km altitude (tilt 45&deg; East).
-                                </div>
-                            </div>
-
-                            <button id="start-btn" class="menu-btn">ENTER MISSION CONTROL</button>
-                            <button id="open-vab-btn" class="menu-btn secondary">VEHICLE ASSEMBLY (VAB)</button>
-                        </div>
+                    </li>
+                </ol>
             </div>
 
-            <div id="ui-layer">
-                <!-- New HUD Header -->
-                <div id="hud-top-bar">
-                    <div class="hud-module">
-                        <div class="hud-label">ALTITUDE</div>
-                        <div class="hud-value-large"><span id="hud-alt">0.0</span> <span class="unit">km</span></div>
-                    </div>
-                    <div class="hud-module">
-                        <div class="hud-label">APOGEE</div>
-                        <div class="hud-value-large"><span id="hud-apogee">0.0</span> <span class="unit">km</span></div>
-                    </div>
-                    <div class="hud-module">
-                        <div class="hud-label">VELOCITY</div>
-                        <div class="hud-value-large"><span id="hud-vel">0</span> <span class="unit">m/s</span></div>
-                    </div>
-                </div>
-
-                <div id="hud-gauges">
-                    <div class="gauge-container">
-                        <div class="gauge-bar-bg">
-                            <div id="gauge-fuel" class="gauge-bar-fill"
-                                style="height: 100%; background-color: #f1c40f;"></div>
-                        </div>
-                        <div class="gauge-label">FUEL</div>
-                    </div>
-                    <div class="gauge-container">
-                        <div class="gauge-bar-bg">
-                            <div id="gauge-thrust" class="gauge-bar-fill"
-                                style="height: 0%; background-color: #e74c3c;"></div>
-                        </div>
-                        <div class="gauge-label">THRUST</div>
-                    </div>
-                </div>
-
-                <div style="position: absolute; bottom: 160px; left: 20px; pointer-events: none;">
-                    <canvas id="navball" width="140" height="140" style="background:transparent;"></canvas>
-                </div>
-                <div style="display:none">
-                    <canvas id="graph-canvas"></canvas>
-                </div>
-
-                <!-- SAS Controls -->
-                <div id="sas-controls">
-                    <div style="margin-bottom: 5px; font-weight: bold; color: #3498db; text-align:right;">SAS CONTROL
-                    </div>
-                    <div class="sas-group">
-                        <button id="sas-off" class="sas-btn active">OFF</button>
-                        <button id="sas-stability" class="sas-btn">STABILITY</button>
-                    </div>
-                    <div class="sas-group">
-                        <button id="sas-prograde" class="sas-btn">PROGRADE</button>
-                        <button id="sas-retrograde" class="sas-btn">RETROGRADE</button>
-                    </div>
-                </div>
-
-                <div id="mission-log">
-                    <h3>MISSION LOG</h3>
-                    <ul id="log-list">
+            <div class="splash-menu">
+                <div id="instruction-panel"
+                    style="background:rgba(0,0,0,0.5); padding:15px; border-radius:8px; margin-bottom:20px; text-align:left; max-width:400px; font-size: 0.9rem; border: 1px solid rgba(255,255,255,0.2);">
+                    <h3 style="margin-top:0; color:#3498db; border-bottom:1px solid #3498db; padding-bottom:5px;">
+                        FLIGHT MANUAL</h3>
+                    <ul style="padding-left:20px; color:#ddd; line-height:1.6;">
+                        <li><strong>Launch:</strong> Press <span style="color:#f1c40f">[SPACE]</span> to
+                            ignite.</li>
+                        <li><strong>Throttle:</strong> <span style="color:#f1c40f">[SHIFT]</span> / <span
+                                style="color:#f1c40f">[CTRL]</span> or Touch Slider.</li>
+                        <li><strong>Steer:</strong> <span style="color:#f1c40f">[ARROWS]</span> or Virtual
+                            Joystick.</li>
+                        <li><strong>Staging:</strong> Press <span style="color:#f1c40f">[S]</span> when fuel
+                            empty.</li>
+                        <li><strong>Map:</strong> Press <span style="color:#f1c40f">[M]</span> to view
+                            Orbit.</li>
+                        <li><strong>SAS:</strong> Press <span style="color:#f1c40f">[T]</span> for Stability
+                            Assist.</li>
                     </ul>
+                    <div style="margin-top:10px; font-size:0.8rem; color:#aaa; font-style:italic;">
+                        Tip: Use gravity turn at 5km altitude (tilt 45&deg; East).
+                    </div>
                 </div>
+
+                <button id="start-btn" class="menu-btn">ENTER MISSION CONTROL</button>
+                <button id="open-vab-btn" class="menu-btn secondary">VEHICLE ASSEMBLY (VAB)</button>
             </div>
+        </div>
+    </div>
 
-            <div id="controls-help">
-                [SPACE] Launch | [S] Stage | [P] Payload | [ARROWS] Control | [1-3] Cam | [ / ] Time | [M] Map | [A]
-                Auto
+    <div id="ui-layer">
+        <!-- New HUD Header -->
+        <div id="hud-top-bar">
+            <div class="hud-module">
+                <div class="hud-label">ALTITUDE</div>
+                <div class="hud-value-large"><span id="hud-alt">0.0</span> <span class="unit">km</span></div>
             </div>
-
-            <div id="status-msg">T-MINUS 3 SECONDS</div>
-
-            <div id="controls">
-                <button id="launch-btn" class="primary">Initiate Launch</button>
-                <button id="autopilot-btn">🤖 Auto-Land: OFF</button>
-                <button id="audio-btn">🔊 Enable Audio</button>
-                <button id="reset-btn" onclick="location.reload()">Reset</button>
+            <div class="hud-module">
+                <div class="hud-label">APOGEE</div>
+                <div class="hud-value-large"><span id="hud-apogee">0.0</span> <span class="unit">km</span></div>
             </div>
+            <div class="hud-module">
+                <div class="hud-label">VELOCITY</div>
+                <div class="hud-value-large"><span id="hud-vel">0</span> <span class="unit">m/s</span></div>
+            </div>
+        </div>
 
-            <div id="mobile-controls">
-                <div id="joystick-zone">
-                    <div id="joystick-knob"></div>
+        <div id="hud-gauges">
+            <div class="gauge-container">
+                <div class="gauge-bar-bg">
+                    <div id="gauge-fuel" class="gauge-bar-fill" style="height: 100%; background-color: #f1c40f;"></div>
                 </div>
-                <div id="mobile-buttons">
-                    <button id="btn-stage">STAGE</button>
-                    <button id="btn-payload">PAYLOAD</button>
-                    <button id="btn-cam">CAM</button>
-                </div>
-                <div id="throttle-zone">
-                    <div id="throttle-handle"></div>
-                </div>
+                <div class="gauge-label">FUEL</div>
             </div>
+            <div class="gauge-container">
+                <div class="gauge-bar-bg">
+                    <div id="gauge-thrust" class="gauge-bar-fill" style="height: 0%; background-color: #e74c3c;"></div>
+                </div>
+                <div class="gauge-label">THRUST</div>
+            </div>
+        </div>
 
-            <canvas id="canvas"></canvas>
+        <div style="position: absolute; bottom: 160px; left: 20px; pointer-events: none;">
+            <canvas id="navball" width="140" height="140" style="background:transparent;"></canvas>
+        </div>
+        <div style="display:none">
+            <canvas id="graph-canvas"></canvas>
+        </div>
 
-            <!-- Load scripts in dependency order -->
-            <script src="js/constants.js"></script>
-            <script src="js/state.js"></script>
-            <script src="js/utils/PIDController.js"></script>
-            <script src="js/utils/AudioEngine.js"></script>
-            <script src="js/utils/SAS.js"></script>
-            <script src="js/ui/MissionLog.js"></script>
-            <script src="js/ui/Navball.js"></script>
-            <script src="js/ui/Telemetry.js"></script>
-            <script src="js/physics/Particle.js"></script>
-            <script src="js/physics/Vessel.js"></script>
-            <script src="js/physics/RocketComponents.js"></script>
-            <script src="js/utils/AssetLoader.js"></script>
-            <script src="js/core/InputManager.js"></script>
-            <script src="js/core/Game.js"></script>
-            <script src="js/main.js"></script>
+        <!-- SAS Controls -->
+        <div id="sas-controls">
+            <div style="margin-bottom: 5px; font-weight: bold; color: #3498db; text-align:right;">SAS CONTROL
+            </div>
+            <div class="sas-group">
+                <button id="sas-off" class="sas-btn active">OFF</button>
+                <button id="sas-stability" class="sas-btn">STABILITY</button>
+            </div>
+            <div class="sas-group">
+                <button id="sas-prograde" class="sas-btn">PROGRADE</button>
+                <button id="sas-retrograde" class="sas-btn">RETROGRADE</button>
+            </div>
+        </div>
+
+        <div id="mission-log">
+            <h3>MISSION LOG</h3>
+            <ul id="log-list">
+            </ul>
+        </div>
+    </div>
+
+    <div id="controls-help">
+        [SPACE] Launch | [S] Stage | [P] Payload | [ARROWS] Control | [1-3] Cam | [ / ] Time | [M] Map | [A]
+        Auto
+    </div>
+
+    <div id="status-msg">T-MINUS 3 SECONDS</div>
+
+    <div id="controls">
+        <button id="launch-btn" class="primary">Initiate Launch</button>
+        <button id="autopilot-btn">🤖 Auto-Land: OFF</button>
+        <button id="audio-btn">🔊 Enable Audio</button>
+        <button id="reset-btn" onclick="location.reload()">Reset</button>
+    </div>
+
+    <div id="mobile-controls">
+        <div id="joystick-zone">
+            <div id="joystick-knob"></div>
+        </div>
+        <div id="mobile-buttons">
+            <button id="btn-stage">STAGE</button>
+            <button id="btn-payload">PAYLOAD</button>
+            <button id="btn-cam">CAM</button>
+        </div>
+        <div id="throttle-zone">
+            <div id="throttle-handle"></div>
+        </div>
+    </div>
+
+    <canvas id="canvas"></canvas>
+
+    <!-- Load scripts in dependency order -->
+    <script src="js/constants.js"></script>
+    <script src="js/state.js"></script>
+    <script src="js/utils/PIDController.js"></script>
+    <script src="js/utils/AudioEngine.js"></script>
+    <script src="js/utils/SAS.js"></script>
+    <script src="js/ui/MissionLog.js"></script>
+    <script src="js/ui/Navball.js"></script>
+    <script src="js/ui/Telemetry.js"></script>
+    <script src="js/physics/Particle.js"></script>
+    <script src="js/physics/Vessel.js"></script>
+    <script src="js/physics/RocketComponents.js"></script>
+    <script src="js/utils/AssetLoader.js"></script>
+    <script src="js/core/InputManager.js"></script>
+    <script src="js/core/Game.js"></script>
+    <script src="js/main.js"></script>
 </body>
 
 </html>

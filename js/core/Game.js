@@ -1,6 +1,6 @@
 class Game {
     constructor() {
-        this.canvas = document.getElementById('gameCanvas');
+        this.canvas = document.getElementById('canvas');
         this.ctx = this.canvas.getContext('2d');
         this.width = window.innerWidth;
         this.height = window.innerHeight;
@@ -336,7 +336,20 @@ class Game {
                 this.navball.draw(this.trackedEntity.angle, velAngle);
 
                 // Update HUD DOM
-                // ...
+                const alt = (this.groundY - this.trackedEntity.y - this.trackedEntity.h) / PIXELS_PER_METER;
+                const vel = Math.sqrt(this.trackedEntity.vx ** 2 + this.trackedEntity.vy ** 2);
+
+                // Calculate apogee estimate
+                const g = 9.8;
+                const apogeeEst = alt + (this.trackedEntity.vy < 0 ? (this.trackedEntity.vy ** 2) / (2 * g) : 0);
+
+                document.getElementById('hud-alt').textContent = (alt / 1000).toFixed(1);
+                document.getElementById('hud-vel').textContent = Math.floor(vel);
+                document.getElementById('hud-apogee').textContent = (Math.max(alt, apogeeEst) / 1000).toFixed(1);
+
+                // Update gauges
+                document.getElementById('gauge-fuel').style.height = (this.trackedEntity.fuel * 100) + '%';
+                document.getElementById('gauge-thrust').style.height = (this.trackedEntity.throttle * 100) + '%';
             }
         }
     }

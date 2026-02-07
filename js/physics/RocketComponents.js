@@ -1,8 +1,8 @@
 // Imports assumed global
 
 class FullStack extends Vessel {
-    constructor() {
-        super(state.width / 2, state.groundY - 160);
+    constructor(x, y) {
+        super(x, y);
         this.h = 160;
         this.mass = CONFIG.MASS_BOOSTER + CONFIG.MASS_UPPER + CONFIG.FUEL_MASS;
         this.maxThrust = CONFIG.MAX_THRUST_BOOSTER;
