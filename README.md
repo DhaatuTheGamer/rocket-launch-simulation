@@ -23,6 +23,19 @@ Built with HTML5 Canvas and vanilla JavaScript (no external libraries).
 *   **Audio Callouts:** Integrated Text-to-Speech (TTS) for mission control voiceovers ("Liftoff", "Supersonic", "Max Q").
 *   **Motion Blur:** Subtle alpha-based trail effects to convey speed.
 
+### v2.1 Update: High-Fidelity Physics & Audio
+*   **Fixed Timestep Loop:** Simulation now runs at a deterministic 60Hz independent of frame rate, ensuring consistent physics on all devices.
+*   **Dynamic Audio Engine:**
+    *   **Pitch Modulation:** Engine sound screams higher as you gain velocity (Doppler/Stress effect).
+    *   **Atmospheric Damping:** Sound fades into a deep rumble as you leave the atmosphere, becoming silent in the vacuum of space.
+*   **Optimized Keplerian Map:** Map View (M) now uses a cached orbit prediction algorithm, massively reducing CPU usage while maintaining 200-step prediction accuracy.
+*   **Code Architecture:** Refactored into a clean `Game` class architecture with a dedicated `InputManager` supporting unified Keyboard/Touch handling.
+
+### 🎨 v2.1 Visual Overhaul
+*   **Atmospheric Scattering:** Sky color dynamically transitions from Earth-blue to Space-black based on altitude.
+*   **Glassmorphism HUD:** New telemetry dashboard with graphical fuel/thrust gauges and digital inputs.
+*   **Sprite Rendering:** Support for sprite-based rockets (with procedural fallbacks if assets are missing).
+
 ---
 
 ## 🎮 Mission Controls
