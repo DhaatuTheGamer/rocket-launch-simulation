@@ -173,6 +173,52 @@ document.querySelectorAll('#camera-panel button').forEach(btn => {
     });
 });
 
+// ========================================
+// KEYBOARD SHORTCUTS
+// ========================================
+window.addEventListener('keydown', (e) => {
+    // Prevent default for game keys
+    if ([' ', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key)) {
+        e.preventDefault();
+    }
+
+    // SPACE - Launch or Stage
+    if (e.key === ' ') {
+        if (flightPhase === 'prelaunch' && game.mainStack?.throttle === 0) {
+            // Initial ignition
+            game.mainStack.active = true;
+            game.mainStack.throttle = 1.0;
+            game.missionLog.log("IGNITION SEQUENCE START", "warn");
+            updateActionButton();
+        } else if (flightPhase !== 'prelaunch') {
+            // Staging
+            performStaging(game);
+        }
+    }
+
+    // S - Staging
+    if (e.key === 's' || e.key === 'S') {
+        performStaging(game);
+    }
+
+    // Arrow Keys - Steering (handled by InputManager but we help update state)
+    // These are already handled by InputManager, but let's ensure the game is responsive
+
+    // 1, 2, 3 - Camera modes
+    if (e.key === '1') {
+        document.querySelector('#camera-panel button[data-cam="1"]')?.click();
+    } else if (e.key === '2') {
+        document.querySelector('#camera-panel button[data-cam="2"]')?.click();
+    } else if (e.key === '3') {
+        document.querySelector('#camera-panel button[data-cam="3"]')?.click();
+    }
+
+    // A - Toggle Autopilot
+    if (e.key === 'a' || e.key === 'A') {
+        document.getElementById('autopilot-btn')?.click();
+    }
+});
+
 // Update action button periodically
 setInterval(updateActionButton, 500);
 
