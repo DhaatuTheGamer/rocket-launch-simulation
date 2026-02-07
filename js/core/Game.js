@@ -144,6 +144,12 @@ class Game {
             e.spawnExhaust(this.timeScale);
         });
 
+        // Sync particles from global state (Vessel adds to state.particles)
+        if (state.particles.length > 0) {
+            this.particles.push(...state.particles);
+            state.particles.length = 0; // Clear after transfer
+        }
+
         // Events
         if (this.trackedEntity) {
             const alt = (this.groundY - this.trackedEntity.y - this.trackedEntity.h) / window.PIXELS_PER_METER;
