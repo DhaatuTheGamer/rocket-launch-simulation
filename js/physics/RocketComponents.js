@@ -61,6 +61,14 @@ class Booster extends Vessel {
         // PID: Negative Kp because Positive Angle (Right) needs Positive Gimbal (Left Tilt)
         this.pidTilt = new PIDController(-5.0, 0.0, -50.0);
         this.pidThrottle = new PIDController(0.1, 0.001, 0.5);
+
+        this.active = true;
+
+        this.nextStage = {
+            type: 'UpperStage',
+            separationVelocity: 3,
+            offsetY: -20
+        };
     }
 
     applyPhysics(dt, keys) {
@@ -144,8 +152,14 @@ class UpperStage extends Vessel {
         this.h = 60;
         this.mass = CONFIG.MASS_UPPER;
         this.maxThrust = CONFIG.MAX_THRUST_UPPER;
-        this.throttle = 1.0;
+        this.active = true;
         this.fairingsDeployed = false;
+
+        this.nextStage = {
+            type: 'Payload',
+            separationVelocity: 2,
+            offsetY: -10
+        };
         this.ispVac = CONFIG.ISP_VAC_UPPER; this.ispSL = CONFIG.ISP_SL_UPPER;
     }
     draw(ctx, camY) {
@@ -204,6 +218,13 @@ class Payload extends Vessel {
         super(x, y);
         this.vx = vx; this.vy = vy; this.mass = 1000; this.w = 20; this.h = 20;
         this.active = true;
+        this.color = '#bdc3c7';
+
+        this.nextStage = {
+            type: 'Booster',
+            separationVelocity: 5,
+            offsetY: -30
+        };
     }
     draw(ctx, camY) {
         ctx.save();

@@ -47,11 +47,24 @@ class AudioEngine {
         this.muted = false;
     }
 
-    setThrust(level) {
+    setThrust(throttle, density, velocity) {
         if (!this.initialized || this.muted) return;
-        const targetVol = Math.max(0, level * 0.5);
+
+        const vacuumMuffle = 0.3;
+        // Simple density factor: 1 at sea level, 0 in vacuum
+        // In Vessel.js density is calculated. Here we receive it.
+        // If density is undefined, assume SL (1.225)
+        const d = density !== undefined ? density : 1.225;
+        const atmoFactor = Math.min(d, 1);
+
+        const volume = throttle * (vacuumMuffle + (1 - vacuumMuffle) * atmoFactor);
+        const targetVol = Math.max(0, volume * 0.5);
+
         this.noiseGain.gain.setTargetAtTime(targetVol, this.ctx.currentTime, 0.1);
-        const targetFreq = 100 + (level * 800);
+
+        const speedFactor = Math.min((velocity || 0) / 3000, 1);
+        const targetFreq = 100 + (throttle * 600) + (speedFactor * 300);
+
         this.lowPass.frequency.setTargetAtTime(targetFreq, this.ctx.currentTime, 0.1);
     }
 

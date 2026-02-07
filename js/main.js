@@ -46,33 +46,69 @@ function resize() {
 
 // --- HELPERS ---
 function performStaging() {
-    if (!mainStack || !mainStack.active) return;
-    audio.playStaging();
-    mainStack.active = false;
-    state.entities.splice(state.entities.indexOf(mainStack), 1);
+    if (Date.now() - lastStageTime < 1000) return;
+    lastStageTime = Date.now();
 
-    const b = new Booster(mainStack.x, mainStack.y + 60, mainStack.vx, mainStack.vy);
-    const u = new UpperStage(mainStack.x, mainStack.y, mainStack.vx, mainStack.vy);
+    if (trackedEntity instanceof FullStack) {
+        missionLog.log("STAGING: S1 SEP", "warn");
+        audio.playStaging();
 
-    u.vy -= 2; b.vy += 2; b.angle = 0.05;
-    state.entities.push(b); state.entities.push(u);
-    booster = b; mainStack = u; trackedEntity = u;
+        // Spawn Particles
+        for (let i = 0; i < 30; i++) {
+            state.particles.push(new Particle(trackedEntity.x + (Math.random() - 0.5) * 20, trackedEntity.y + 80,
+                trackedEntity.vx + (Math.random() - 0.5) * 20, trackedEntity.vy + (Math.random() - 0.5) * 20,
+                Math.random() * 1 + 0.5, 'smoke'));
+        }
 
-    document.getElementById('booster-stats').style.display = 'block';
-    missionLog.log("STAGE SEPARATION CONFIRMED", "info");
-}
+        // Remove FullStack
+        state.entities = state.entities.filter(e => e !== trackedEntity);
 
-function performPayloadDep() {
-    const u = state.entities.find(e => e instanceof UpperStage);
-    if (!u || u.fairingsDeployed) return;
-    audio.playStaging();
-    u.fairingsDeployed = true;
-    state.entities.push(new Fairing(u.x - 10, u.y - 30, u.vx, u.vy, -1));
-    state.entities.push(new Fairing(u.x + 10, u.y - 30, u.vx, u.vy, 1));
-    const p = new Payload(u.x, u.y - 20, u.vx, u.vy - 1);
-    state.entities.push(p);
-    trackedEntity = p;
-    missionLog.log("PAYLOAD DEPLOYMENT", "info");
+        // Spawn Booster (Debris/Auto-land)
+        // Correction: Booster spawns at same pos
+        booster = new Booster(trackedEntity.x, trackedEntity.y, trackedEntity.vx, trackedEntity.vy);
+        booster.angle = trackedEntity.angle;
+        booster.fuel = 0.05; // Leftover
+        booster.active = true; // For autopilot
+        state.entities.push(booster);
+
+        // Spawn Upper Stage (Controlled)
+        upperStage = new UpperStage(trackedEntity.x, trackedEntity.y - 60, trackedEntity.vx, trackedEntity.vy + 2); // Push away
+        upperStage.angle = trackedEntity.angle;
+        upperStage.active = true;
+        upperStage.throttle = 1.0;
+        state.entities.push(upperStage);
+
+        mainStack = upperStage;
+        trackedEntity = upperStage;
+
+    } else if (trackedEntity instanceof UpperStage && !trackedEntity.fairingsDeployed) {
+        trackedEntity.fairingsDeployed = true;
+        missionLog.log("FAIRING SEP", "info");
+        audio.playStaging();
+
+        const fL = new Fairing(trackedEntity.x - 12, trackedEntity.y - 40, trackedEntity.vx - 10, trackedEntity.vy);
+        fL.angle = trackedEntity.angle - 0.5;
+        state.entities.push(fL);
+
+        const fR = new Fairing(trackedEntity.x + 12, trackedEntity.y - 40, trackedEntity.vx + 10, trackedEntity.vy);
+        fR.angle = trackedEntity.angle + 0.5;
+        state.entities.push(fR);
+
+    } else if (trackedEntity instanceof UpperStage) {
+        // Payload Separation
+        missionLog.log("PAYLOAD DEP", "success");
+        audio.playStaging();
+
+        trackedEntity.active = false;
+        trackedEntity.throttle = 0;
+
+        const payload = new Payload(trackedEntity.x, trackedEntity.y - 20, trackedEntity.vx, trackedEntity.vy + 1);
+        payload.angle = trackedEntity.angle;
+        state.entities.push(payload);
+
+        trackedEntity = payload;
+        mainStack = payload;
+    }
 }
 
 function initGame() {
@@ -101,6 +137,49 @@ function initiateLaunch() {
 
 // --- RENDERERS ---
 
+function updateOrbitPaths(now) {
+    state.entities.forEach(e => {
+        if (e.crashed) return;
+        const alt = (state.groundY - e.y - e.h) / PIXELS_PER_METER;
+
+        let needsUpdate = false;
+        if (e.throttle > 0) needsUpdate = true;
+        if (alt < 140000) needsUpdate = true;
+        if (now - (e.lastOrbitUpdate || 0) > 1000) needsUpdate = true;
+        if (!e.orbitPath) needsUpdate = true;
+
+        if (needsUpdate) {
+            e.orbitPath = [];
+            e.lastOrbitUpdate = now;
+
+            let simState = { x: e.x / 10, y: e.y / 10, vx: e.vx, vy: e.vy, mass: e.mass };
+            let steps = 200;
+            let dtPred = 10;
+
+            const startPhi = simState.x / R_EARTH;
+            const startR = R_EARTH + (state.groundY / 10 - simState.y - e.h / 10);
+            e.orbitPath.push({ phi: startPhi, r: startR });
+
+            for (let i = 0; i < steps; i++) {
+                const pAlt = (state.groundY / 10 - simState.y - e.h / 10);
+                const pRad = pAlt + R_EARTH;
+                const pG = 9.8 * Math.pow(R_EARTH / pRad, 2);
+                const pFy = pG - (simState.vx ** 2) / pRad;
+
+                simState.vy += pFy * dtPred;
+                simState.x += simState.vx * dtPred;
+                simState.y += simState.vy * dtPred;
+
+                if (simState.y * 10 > state.groundY) break;
+
+                const pPhi = (simState.x * 10) / R_EARTH;
+                const pR = R_EARTH + (state.groundY / 10 - simState.y - e.h / 10);
+                e.orbitPath.push({ phi: pPhi, r: pR });
+            }
+        }
+    });
+}
+
 function drawMap() {
     ctx.fillStyle = '#000';
     ctx.fillRect(0, 0, state.width, state.height);
@@ -122,44 +201,24 @@ function drawMap() {
         const r = R_EARTH + alt;
         const phi = e.x / R_EARTH;
 
-        // Draw Object
         const ox = cx + Math.cos(phi - Math.PI / 2) * r * scale;
         const oy = cy + Math.sin(phi - Math.PI / 2) * r * scale;
 
         ctx.fillStyle = e === trackedEntity ? '#f1c40f' : '#aaa';
         ctx.beginPath(); ctx.arc(ox, oy, 3, 0, Math.PI * 2); ctx.fill();
 
-        // Orbital Path Prediction
-        ctx.beginPath();
-        ctx.strokeStyle = ctx.fillStyle;
-        ctx.lineWidth = 1;
-
-        let simState = { x: e.x / 10, y: e.y / 10, vx: e.vx, vy: e.vy, mass: e.mass };
-        let steps = 200;
-        let dtPred = 10;
-
-        ctx.moveTo(ox, oy);
-
-        for (let i = 0; i < steps; i++) {
-            const pAlt = (state.groundY / 10 - simState.y - e.h / 10);
-            const pRad = pAlt + R_EARTH;
-            const pG = 9.8 * Math.pow(R_EARTH / pRad, 2);
-            const pFy = pG - (simState.vx ** 2) / pRad;
-
-            simState.vy += pFy * dtPred;
-            simState.x += simState.vx * dtPred;
-            simState.y += simState.vy * dtPred;
-
-            if (simState.y * 10 > state.groundY) break;
-
-            const pPhi = (simState.x * 10) / R_EARTH;
-            const pR = R_EARTH + (state.groundY / 10 - simState.y - e.h / 10);
-
-            const px = cx + Math.cos(pPhi - Math.PI / 2) * pR * scale;
-            const py = cy + Math.sin(pPhi - Math.PI / 2) * pR * scale;
-            ctx.lineTo(px, py);
+        if (e.orbitPath) {
+            ctx.beginPath();
+            ctx.strokeStyle = ctx.fillStyle;
+            ctx.lineWidth = 1;
+            e.orbitPath.forEach((p, i) => {
+                const px = cx + Math.cos(p.phi - Math.PI / 2) * p.r * scale;
+                const py = cy + Math.sin(p.phi - Math.PI / 2) * p.r * scale;
+                if (i === 0) ctx.moveTo(px, py);
+                else ctx.lineTo(px, py);
+            });
+            ctx.stroke();
         }
-        ctx.stroke();
     });
 
     ctx.fillStyle = 'white';
@@ -167,57 +226,88 @@ function drawMap() {
     ctx.fillText("ORBITAL MAP MODE [M]", 20, 40);
 }
 
-function animate() {
+// --- PHYSICS LOOP ---
+const FIXED_DT = 1 / 60;
+let accumulator = 0;
+let lastTime = 0;
+
+function updatePhysics(dt) {
+    // Update SAS
+    if (mainStack && mainStack.active && sas.mode !== SASModes.OFF) {
+        if (keys['ArrowLeft'] || keys['ArrowRight']) {
+            // Manual override handled in input?
+        } else {
+            const sasOut = sas.update(mainStack, dt * timeScale);
+            mainStack.gimbalAngle = sasOut;
+        }
+    }
+
+    const simDt = dt * timeScale;
+    state.entities.forEach(e => {
+        e.applyPhysics(simDt, keys);
+        e.spawnExhaust(timeScale);
+    });
+
+    if (trackedEntity) {
+        const alt = (state.groundY - trackedEntity.y - trackedEntity.h) / PIXELS_PER_METER;
+        const vel = Math.sqrt(trackedEntity.vx ** 2 + trackedEntity.vy ** 2);
+
+        const rho = 1.225 * Math.exp(-alt / 7000);
+        audio.setThrust(trackedEntity.throttle, rho, vel);
+
+        if (!missionState.liftoff && alt > 20) { missionState.liftoff = true; missionLog.log("LIFTOFF", "warn"); audio.speak("Liftoff"); }
+        if (!missionState.supersonic && vel > 340) { missionState.supersonic = true; missionLog.log("SUPERSONIC", "info"); }
+        if (!missionState.maxq && trackedEntity.q > 5000) { missionState.maxq = true; missionLog.log("MAX Q", "warn"); audio.speak("Max Q"); }
+    }
+
+    for (let i = state.particles.length - 1; i >= 0; i--) {
+        let p = state.particles[i];
+        p.update(state.groundY, timeScale);
+        if (p.life <= 0) state.particles.splice(i, 1);
+    }
+}
+
+function animate(currentTime) {
+    if (!lastTime) lastTime = currentTime;
+    const deltaTime = Math.min((currentTime - lastTime) / 1000, 0.1);
+    lastTime = currentTime;
+    accumulator += deltaTime;
+
+    // Physics Updates
+    while (accumulator >= FIXED_DT) {
+        updatePhysics(FIXED_DT);
+        if (cameraMode === 'MAP') updateOrbitPaths(currentTime);
+        accumulator -= FIXED_DT;
+    }
+
+    // Rendering
     if (cameraMode === 'MAP') {
         drawMap();
     } else {
         ctx.clearRect(0, 0, state.width, state.height);
 
-        // Update SAS
-        if (mainStack && mainStack.active && sas.mode !== SASModes.OFF) {
-            // Check for manual override
-            if (keys['ArrowLeft'] || keys['ArrowRight']) {
-                // Manual override: Reset stability to new header when released?
-                // For now just letting manual input fight/add to SAS is messy.
-                // Ideally: if manual input, SAS is suspended.
-            } else {
-                const sasOut = sas.update(mainStack, DT * timeScale);
-                mainStack.gimbalAngle = sasOut;
-            }
-        }
+        // Atmosphere
+        const alt = -state.cameraY;
+        const spaceRatio = Math.min(Math.max(alt / 60000, 0), 1);
+        const grd = ctx.createLinearGradient(0, 0, 0, state.height);
 
-        const simDt = DT * timeScale;
-        state.entities.forEach(e => {
-            // Updated to pass keys and handle control
-            // Note: e.applyPhysics(simDt, keys) handles controls IF it's a controlled vessel
-            // But we need to make sure `keys` is passed only to controlled entities?
-            // Actually, the original code had `if (this === booster) ...`
-            // So passing keys to all is fine, they internally check if they are controllable.
-            // Wait, I need to pass a property "isBooster" or the logic inside `Vessel` needs to know.
-            // In `Vessel.js`, I didn't fully implement the check `this === booster`.
-            // I'll rely on `e instanceof Booster` inside `applyPhysics` if needed, OR
-            // `Booster` overrides `applyPhysics`.
-            // `Vessel` now has `control(dt, keys, isBooster)`.
-            // `Booster.applyPhysics` calls `runAutopilot` if enabled.
+        const rBot = Math.floor(135 * (1 - spaceRatio));
+        const gBot = Math.floor(206 * (1 - spaceRatio));
+        const bBot = Math.floor(235 * (1 - spaceRatio));
+        const rTop = Math.floor(0 * (1 - spaceRatio));
+        const gTop = Math.floor(0 * (1 - spaceRatio));
+        const bTop = Math.floor(20 * (1 - spaceRatio));
 
-            // I need to ensure `keys` are available here.
-            e.applyPhysics(simDt, keys);
-            e.spawnExhaust(timeScale);
-        });
+        grd.addColorStop(0, `rgb(${rTop}, ${gTop}, ${bTop})`);
+        grd.addColorStop(1, `rgb(${rBot}, ${gBot}, ${bBot})`);
+        ctx.fillStyle = grd;
+        ctx.fillRect(0, 0, state.width, state.height);
 
-        if (trackedEntity) {
-            const alt = (state.groundY - trackedEntity.y - trackedEntity.h) / PIXELS_PER_METER;
-            const vel = Math.sqrt(trackedEntity.vx ** 2 + trackedEntity.vy ** 2);
-            if (!missionState.liftoff && alt > 20) { missionState.liftoff = true; missionLog.log("LIFTOFF", "warn"); audio.speak("Liftoff"); }
-            if (!missionState.supersonic && vel > 340) { missionState.supersonic = true; missionLog.log("SUPERSONIC", "info"); }
-            if (!missionState.maxq && trackedEntity.q > 5000) { missionState.maxq = true; missionLog.log("MAX Q", "warn"); audio.speak("Max Q"); }
-        }
-
+        // Camera Shake & Transform
         if (trackedEntity) {
             let targetY = trackedEntity.y - state.height * 0.6;
             if (cameraMode === 'ROCKET') targetY = trackedEntity.y - state.height / 2;
             if (cameraMode === 'TOWER') targetY = 0;
-
             if (targetY < 0) state.cameraY += (targetY - state.cameraY) * 0.1;
             else state.cameraY += (0 - state.cameraY) * 0.1;
 
@@ -227,37 +317,16 @@ function animate() {
             cameraShakeY = (Math.random() - 0.5) * shake;
         }
 
-        const alt = -state.cameraY;
-        const spaceRatio = Math.min(Math.max(alt / 60000, 0), 1);
-
-        // Gradient Sky
-        const grd = ctx.createLinearGradient(0, 0, 0, state.height);
-
-        // Colors interpolated based on altitude
-        const rBot = Math.floor(135 * (1 - spaceRatio));
-        const gBot = Math.floor(206 * (1 - spaceRatio));
-        const bBot = Math.floor(235 * (1 - spaceRatio));
-
-        const rTop = Math.floor(0 * (1 - spaceRatio));
-        const gTop = Math.floor(0 * (1 - spaceRatio));
-        const bTop = Math.floor(20 * (1 - spaceRatio));
-
-        grd.addColorStop(0, `rgb(${rTop}, ${gTop}, ${bTop})`);
-        grd.addColorStop(1, `rgb(${rBot}, ${gBot}, ${bBot})`);
-
-        ctx.fillStyle = grd;
-        ctx.fillRect(0, 0, state.width, state.height);
-
         ctx.save();
         ctx.translate(cameraShakeX, -state.cameraY + cameraShakeY);
 
         ctx.fillStyle = '#2ecc71'; ctx.fillRect(-50000, state.groundY, 100000, 500);
 
+        // Bloom
         bloomCtx.clearRect(0, 0, bloomCanvas.width, bloomCanvas.height);
         bloomCtx.save();
         bloomCtx.scale(0.25, 0.25);
         bloomCtx.translate(cameraShakeX, -state.cameraY + cameraShakeY);
-
         state.particles.forEach(p => {
             if (p.type === 'fire') {
                 bloomCtx.beginPath();
@@ -275,24 +344,19 @@ function animate() {
         ctx.filter = 'none';
         ctx.restore();
 
-        for (let i = state.particles.length - 1; i >= 0; i--) {
-            let p = state.particles[i];
-            p.update(state.groundY, timeScale);
-            p.draw(ctx);
-            if (p.life <= 0) state.particles.splice(i, 1);
-        }
-
+        // Draw State
+        state.particles.forEach(p => p.draw(ctx));
         state.entities.forEach(e => e.draw(ctx, state.cameraY));
 
         ctx.restore();
 
+        // HUD Updates
         if (trackedEntity) {
             const velAngle = Math.atan2(trackedEntity.vx, -trackedEntity.vy);
             navball.draw(trackedEntity.angle, velAngle);
             const alt = (state.groundY - trackedEntity.y - trackedEntity.h) / PIXELS_PER_METER;
             const vel = Math.sqrt(trackedEntity.vx ** 2 + trackedEntity.vy ** 2);
 
-            // New HUD Updates
             const hudAlt = document.getElementById('hud-alt');
             const hudVel = document.getElementById('hud-vel');
             const hudApogee = document.getElementById('hud-apogee');
@@ -327,7 +391,6 @@ function animate() {
             if (gaugeFuel) gaugeFuel.style.height = (fuel * 100) + '%';
             if (gaugeThrust) gaugeThrust.style.height = (thrust * 100) + '%';
         }
-        // telemetry.draw();
 
         ctx.fillStyle = 'white';
         ctx.font = '16px monospace';

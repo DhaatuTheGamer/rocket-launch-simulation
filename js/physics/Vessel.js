@@ -17,6 +17,8 @@ class Vessel {
         this.apogee = 0;
         this.ispVac = 300; this.ispSL = 280;
         this.health = 100;
+        this.orbitPath = null; // Cache for orbit prediction
+        this.lastOrbitUpdate = 0;
     }
 
     // RK4 Integration
