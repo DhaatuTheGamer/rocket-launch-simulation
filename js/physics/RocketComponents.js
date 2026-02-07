@@ -15,19 +15,34 @@ class FullStack extends Vessel {
         this.drawPlasma(ctx);
         this.drawShockwave(ctx);
 
-        // Body
-        ctx.fillStyle = '#fff';
-        ctx.fillRect(-20, 0, 40, 60);
-        ctx.beginPath(); ctx.moveTo(-20, 0); ctx.quadraticCurveTo(0, -40, 20, 0); ctx.fill();
-        ctx.fillStyle = '#eee'; ctx.fillRect(-20, 60, 40, 100);
+        const rocketImg = state.assets ? state.assets.get('rocket_body') : null;
+        const engineImg = state.assets ? state.assets.get('rocket_engine') : null;
 
-        // Engine
-        ctx.save();
-        ctx.translate(0, 160);
-        ctx.rotate(this.gimbalAngle);
-        ctx.fillStyle = '#333';
-        ctx.beginPath(); ctx.moveTo(-10, 0); ctx.lineTo(-15, 20); ctx.lineTo(15, 20); ctx.lineTo(10, 0); ctx.fill();
-        ctx.restore();
+        if (rocketImg && engineImg) {
+            // Draw Engine
+            ctx.save();
+            ctx.translate(0, 160);
+            ctx.rotate(this.gimbalAngle);
+            ctx.drawImage(engineImg, -15, -10, 30, 40);
+            ctx.restore();
+
+            // Draw Body
+            ctx.drawImage(rocketImg, -20, 0, 40, 160);
+        } else {
+            // Body
+            ctx.fillStyle = '#fff';
+            ctx.fillRect(-20, 0, 40, 60);
+            ctx.beginPath(); ctx.moveTo(-20, 0); ctx.quadraticCurveTo(0, -40, 20, 0); ctx.fill();
+            ctx.fillStyle = '#eee'; ctx.fillRect(-20, 60, 40, 100);
+
+            // Engine
+            ctx.save();
+            ctx.translate(0, 160);
+            ctx.rotate(this.gimbalAngle);
+            ctx.fillStyle = '#333';
+            ctx.beginPath(); ctx.moveTo(-10, 0); ctx.lineTo(-15, 20); ctx.lineTo(15, 20); ctx.lineTo(10, 0); ctx.fill();
+            ctx.restore();
+        }
 
         ctx.restore();
     }
@@ -89,14 +104,29 @@ class Booster extends Vessel {
         ctx.rotate(this.angle);
         this.drawPlasma(ctx);
 
-        ctx.fillStyle = '#eee'; ctx.fillRect(-20, 0, 40, 100);
+        const rocketImg = state.assets ? state.assets.get('rocket_body') : null;
+        const engineImg = state.assets ? state.assets.get('rocket_engine') : null;
 
-        ctx.save();
-        ctx.translate(0, 100);
-        ctx.rotate(this.gimbalAngle);
-        ctx.fillStyle = '#222';
-        ctx.beginPath(); ctx.moveTo(-10, 0); ctx.lineTo(-15, 20); ctx.lineTo(15, 20); ctx.lineTo(10, 0); ctx.fill();
-        ctx.restore();
+        if (rocketImg && engineImg) {
+            // Draw Body (Booster section using part of image or scaled?)
+            // Just reusing rocket image for simplicity of placeholder logic
+            ctx.drawImage(rocketImg, -20, 0, 40, 100);
+
+            ctx.save();
+            ctx.translate(0, 100);
+            ctx.rotate(this.gimbalAngle);
+            ctx.drawImage(engineImg, -15, -10, 30, 40);
+            ctx.restore();
+        } else {
+            ctx.fillStyle = '#eee'; ctx.fillRect(-20, 0, 40, 100);
+
+            ctx.save();
+            ctx.translate(0, 100);
+            ctx.rotate(this.gimbalAngle);
+            ctx.fillStyle = '#222';
+            ctx.beginPath(); ctx.moveTo(-10, 0); ctx.lineTo(-15, 20); ctx.lineTo(15, 20); ctx.lineTo(10, 0); ctx.fill();
+            ctx.restore();
+        }
 
         if ((state.groundY - this.y - this.h) / PIXELS_PER_METER < 200) {
             ctx.fillStyle = '#111';
@@ -126,16 +156,44 @@ class UpperStage extends Vessel {
         this.drawPlasma(ctx);
         this.drawShockwave(ctx);
 
-        ctx.fillStyle = '#444';
-        ctx.beginPath(); ctx.moveTo(-10, 60); ctx.lineTo(10, 60); ctx.lineTo(15, 75); ctx.lineTo(-15, 75); ctx.fill();
+        const rocketImg = state.assets ? state.assets.get('rocket_body') : null;
+        const engineImg = state.assets ? state.assets.get('rocket_engine') : null;
+        const fairingImg = state.assets ? state.assets.get('fairing') : null;
 
-        ctx.fillStyle = '#fff';
-        ctx.fillRect(-20, 0, 40, 60);
+        if (rocketImg && engineImg) {
+            // Engine
+            ctx.save();
+            ctx.translate(0, 60);
+            ctx.drawImage(engineImg, -10, -5, 20, 25);
+            ctx.restore();
 
-        if (!this.fairingsDeployed) {
-            ctx.beginPath(); ctx.moveTo(-20, 0); ctx.quadraticCurveTo(0, -40, 20, 0); ctx.fill();
+            // Tank
+            ctx.drawImage(rocketImg, -20, 0, 40, 60);
+
+            // Fairing
+            if (!this.fairingsDeployed) {
+                if (fairingImg) {
+                    ctx.drawImage(fairingImg, -20, -40, 40, 40);
+                } else {
+                    ctx.fillStyle = '#fff';
+                    ctx.beginPath(); ctx.moveTo(-20, 0); ctx.quadraticCurveTo(0, -40, 20, 0); ctx.fill();
+                }
+            } else {
+                ctx.fillStyle = '#f1c40f'; ctx.fillRect(-10, -5, 20, 5);
+            }
+
         } else {
-            ctx.fillStyle = '#f1c40f'; ctx.fillRect(-10, -5, 20, 5);
+            ctx.fillStyle = '#444';
+            ctx.beginPath(); ctx.moveTo(-10, 60); ctx.lineTo(10, 60); ctx.lineTo(15, 75); ctx.lineTo(-15, 75); ctx.fill();
+
+            ctx.fillStyle = '#fff';
+            ctx.fillRect(-20, 0, 40, 60);
+
+            if (!this.fairingsDeployed) {
+                ctx.beginPath(); ctx.moveTo(-20, 0); ctx.quadraticCurveTo(0, -40, 20, 0); ctx.fill();
+            } else {
+                ctx.fillStyle = '#f1c40f'; ctx.fillRect(-10, -5, 20, 5);
+            }
         }
         ctx.restore();
     }

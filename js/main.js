@@ -18,7 +18,9 @@ const sas = new SAS();
 
 // Assign to state for global access from vessels
 state.audio = audio;
+state.audio = audio;
 state.missionLog = missionLog;
+state.assets = new AssetLoader();
 
 // --- CAMERA & GAME STATE ---
 let trackedEntity = null;
@@ -226,11 +228,24 @@ function animate() {
         }
 
         const alt = -state.cameraY;
-        const spaceRatio = Math.min(Math.max(alt / 50000, 0), 1);
-        const r = 135 * (1 - spaceRatio);
-        const g = 206 * (1 - spaceRatio);
-        const b = 235 * (1 - spaceRatio) + 20 * spaceRatio;
-        ctx.fillStyle = `rgb(${r},${g},${b})`;
+        const spaceRatio = Math.min(Math.max(alt / 60000, 0), 1);
+
+        // Gradient Sky
+        const grd = ctx.createLinearGradient(0, 0, 0, state.height);
+
+        // Colors interpolated based on altitude
+        const rBot = Math.floor(135 * (1 - spaceRatio));
+        const gBot = Math.floor(206 * (1 - spaceRatio));
+        const bBot = Math.floor(235 * (1 - spaceRatio));
+
+        const rTop = Math.floor(0 * (1 - spaceRatio));
+        const gTop = Math.floor(0 * (1 - spaceRatio));
+        const bTop = Math.floor(20 * (1 - spaceRatio));
+
+        grd.addColorStop(0, `rgb(${rTop}, ${gTop}, ${bTop})`);
+        grd.addColorStop(1, `rgb(${rBot}, ${gBot}, ${bBot})`);
+
+        ctx.fillStyle = grd;
         ctx.fillRect(0, 0, state.width, state.height);
 
         ctx.save();
@@ -276,23 +291,43 @@ function animate() {
             navball.draw(trackedEntity.angle, velAngle);
             const alt = (state.groundY - trackedEntity.y - trackedEntity.h) / PIXELS_PER_METER;
             const vel = Math.sqrt(trackedEntity.vx ** 2 + trackedEntity.vy ** 2);
-            const domAlt = document.getElementById('alt');
-            const domVel = document.getElementById('vel');
-            const domApogee = document.getElementById('apogee');
-            if (domAlt) domAlt.innerText = (alt / 1000).toFixed(1);
-            if (domVel) domVel.innerText = vel.toFixed(0);
-            if (domApogee) domApogee.innerText = (alt / 1000).toFixed(1);
+
+            // New HUD Updates
+            const hudAlt = document.getElementById('hud-alt');
+            const hudVel = document.getElementById('hud-vel');
+            const hudApogee = document.getElementById('hud-apogee');
+            const hudVSpeed = document.getElementById('hud-vspeed');
+
+            if (hudAlt) hudAlt.innerText = (alt / 1000).toFixed(1);
+            if (hudVel) hudVel.innerText = vel.toFixed(0);
+            if (hudVSpeed) hudVSpeed.innerText = (-trackedEntity.vy).toFixed(0);
+
+            const apogee = trackedEntity.apogee || (alt / 1000);
+            if (hudApogee) hudApogee.innerText = apogee.toFixed(1);
+
             telemetry.update(performance.now() / 1000, alt, vel);
 
-            // Booster Stats
+            // Gauges
+            let fuel = 0;
+            let thrust = 0;
+
             if (booster && booster.active) {
-                const boostFuel = document.getElementById('boost-fuel');
-                const boostThrust = document.getElementById('boost-thrust');
-                if (boostFuel) boostFuel.innerText = (booster.fuel * 100).toFixed(0);
-                if (boostThrust) boostThrust.innerText = (booster.throttle * 100).toFixed(0);
+                fuel = booster.fuel;
+                thrust = booster.throttle;
+            } else if (mainStack && mainStack.active) {
+                fuel = mainStack.fuel;
+                thrust = mainStack.throttle;
+            } else if (trackedEntity && trackedEntity.fuel !== undefined) {
+                fuel = trackedEntity.fuel;
+                thrust = trackedEntity.throttle;
             }
+
+            const gaugeFuel = document.getElementById('gauge-fuel');
+            const gaugeThrust = document.getElementById('gauge-thrust');
+            if (gaugeFuel) gaugeFuel.style.height = (fuel * 100) + '%';
+            if (gaugeThrust) gaugeThrust.style.height = (thrust * 100) + '%';
         }
-        telemetry.draw();
+        // telemetry.draw();
 
         ctx.fillStyle = 'white';
         ctx.font = '16px monospace';
@@ -502,5 +537,7 @@ const originalAnimate = animate;
 // I will edit the animate function loop above using multi-replace.
 
 
-initGame();
-animate();
+state.assets.loadAll().then(() => {
+    initGame();
+    animate();
+});
